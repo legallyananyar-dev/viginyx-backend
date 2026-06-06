@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.schemas.response import APIErrorResponse
+from app.core.config import settings
 
 def setup_exception_handlers(app: FastAPI):
     """
@@ -30,15 +31,22 @@ def setup_exception_handlers(app: FastAPI):
         """
         Catches all Pydantic validation errors that occur when the client sends a bad request 
         payload (e.g., missing required fields, wrong data types). Maps these automatically 
-        generated errors into the standard APIErrorResponse structure.
+        generated errors into the specific format requested.
         """
-        response = APIErrorResponse(
-            success=False,
-            error_code="VALIDATION_ERROR",
-            message="Invalid request payload",
-            details=exc.errors()
+        errors = []
+        if settings.environment in ("dev", "staging"):
+            for err in exc.errors():
+                field = str(err.get("loc", [""])[-1])
+                msg = err.get("msg", "Invalid value")
+                errors.append({"field": field, "message": msg})
+                
+        return JSONResponse(
+            status_code=422, 
+            content={
+                "message": "Validation failed",
+                "errors": errors
+            }
         )
-        return JSONResponse(status_code=422, content=response.model_dump())
         
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
@@ -51,6 +59,6 @@ def setup_exception_handlers(app: FastAPI):
             success=False,
             error_code="INTERNAL_SERVER_ERROR",
             message="An unexpected error occurred",
-            details=str(exc) # NOTE: In production, consider hiding the exception details
+            details=str(exc) if settings.environment in ("dev", "staging") else None
         )
         return JSONResponse(status_code=500, content=response.model_dump())

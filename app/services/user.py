@@ -17,6 +17,13 @@ class UserService(BaseService[User, UserCreate, UserUpdate]):
         statement = select(User).where(User.id == user_id)
         return session.exec(statement).first()
 
+    def get_by_email(self, session: Session, *, email: str) -> User | None:
+        """
+        Fetch a user by their email using a read/replica session.
+        """
+        statement = select(User).where(User.email == email)
+        return session.exec(statement).first()
+    
     def create(self, session: Session, *, obj_in: UserCreate) -> User:
         """
         Custom create logic to handle password hashing before saving to the DB.

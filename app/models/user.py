@@ -49,6 +49,7 @@ class User(UserBase, table=True):
     """
     __tablename__ = "users"
     hashed_password: str
+    passkeys: list["Passkeys"] = Relationship(back_populates="user")
 
 class Token(SQLModel):
     """

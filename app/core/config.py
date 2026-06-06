@@ -31,8 +31,11 @@ class Settings(BaseSettings):
     postgres_replica_port: int | None = None
 
     # WebAuthn Configuration
-    webauthn_rp_id: str
-    webauthn_rp_name: str
+    webauthn_rp_id: str  
+    webauthn_rp_name: str 
+
+    #Hashing key
+    hashing_secret_key: str 
 
     @computed_field
     @property

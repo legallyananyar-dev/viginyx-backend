@@ -3,10 +3,12 @@ import jwt
 from datetime import datetime, timedelta, timezone
 from passlib.context import CryptContext
 from app.core.config import settings
+from pwdlib import PasswordHash
 
 # Context for password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 ALGORITHM = "HS256"
+password_hash = PasswordHash.recommended()
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
@@ -16,6 +18,8 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
     pass
 
+    return password_hash.verify(plain_password, hashed_password)
+
 def get_password_hash(password: str) -> str:
     """
     Hashes a plain-text password for secure storage.
@@ -23,6 +27,7 @@ def get_password_hash(password: str) -> str:
     TODO: Implement password hashing logic.
     """
     pass
+    return password_hash.hash(password=password)
 
 def create_access_token(user_id: str | int, expires_delta: timedelta | None = None) -> str:
     """
