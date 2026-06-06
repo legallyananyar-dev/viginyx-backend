@@ -1,5 +1,4 @@
-from rich.status import status
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 import jwt
 from datetime import datetime, timedelta, timezone
 from passlib.context import CryptContext

@@ -32,13 +32,22 @@ class UserRead(UserBase):
     """
     Schema used for returning user data via the API.
     """
-    id: int
+    id: UUID
+
+class UserUpdate(SQLModel):
+    """
+    Schema used for updating user data.
+    """
+    email: str | None = None
+    password: str | None = None
+    is_active: bool | None = None
+    role: UserRole | None = None
 
 class User(UserBase, table=True):
     """
     The main database model representing a User in PostgreSQL.
     """
-    id: int | None = Field(default=None, primary_key=True)
+    __tablename__ = "users"
     hashed_password: str
 
 class Token(SQLModel):
