@@ -1,0 +1,12 @@
+Metadata-Version: 2.4
+Name: viginyx-backend
+Version: 0.1.0
+Summary: FastAPI backend
+Requires-Python: >=3.10
+Requires-Dist: fastapi[standard]>=0.111.0
+Requires-Dist: pydantic>=2.0.0
+Requires-Dist: pydantic-settings>=2.0.0
+Requires-Dist: sqlmodel>=0.0.21
+Requires-Dist: psycopg[binary]>=3.2.1
+Requires-Dist: passlib[bcrypt]>=1.7.4
+Requires-Dist: PyJWT>=2.8.0

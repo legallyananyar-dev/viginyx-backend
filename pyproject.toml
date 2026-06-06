@@ -1,0 +1,17 @@
+[project]
+name = "viginyx-backend"
+version = "0.1.0"
+description = "FastAPI backend"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi[standard]>=0.111.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "sqlmodel>=0.0.21",
+    "psycopg[binary]>=3.2.1",
+    "passlib[bcrypt]>=1.7.4",
+    "PyJWT>=2.8.0"
+]
+
+[tool.fastapi]
+entrypoint = "app.main:app"
