@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     cookie_domain: str | None = None
     cookie_path: str = "/"
 
+    # Initial Superuser
+    first_superuser: str | None = None
+    first_superuser_password: str | None = None
+
 
     cors_config: ClassVar[dict] = {
         "allow_origins": ["http://localhost:3000","http://localhost:4001"],

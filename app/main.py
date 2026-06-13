@@ -8,16 +8,11 @@ from app.core.exceptions import setup_exception_handlers
 from app.schemas.response import APIResponse
 from sqlmodel import SQLModel
 
-# CORS Middelware
-app.add_middleware(
-    CORSMiddleware,
-    **settings.cors_config
-)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize the database tables on startup (always against primary)
-    SQLModel.metadata.create_all(write_engine)
+    # Database is now managed by Alembic, do not run create_all here
+    pass
     
     yield
     
@@ -30,6 +25,13 @@ app = FastAPI(
     title=settings.project_name,
     openapi_url=f"{settings.api_v1_str}/openapi.json",
     lifespan=lifespan
+)
+
+
+# CORS Middelware
+app.add_middleware(
+    CORSMiddleware,
+    **settings.cors_config
 )
 
 # Register global exception handlers for consistent error structures
