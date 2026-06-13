@@ -33,3 +33,8 @@ class APIErrorResponse(BaseModel):
     error_code: str | int = Field(default="ERROR", description="A machine-readable error code")
     message: str = Field(..., description="A human-readable error message")
     details: Any | None = Field(default=None, description="Additional error details, such as validation field errors")
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+    

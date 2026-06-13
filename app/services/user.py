@@ -38,5 +38,22 @@ class UserService(BaseService[User, UserCreate, UserUpdate]):
         session.refresh(db_obj)
         return db_obj
 
+    def update(self, session: Session, *, db_obj: User, obj_in: UserUpdate | dict[str, Any]) -> User:
+        """
+        Custom update logic to handle password hashing.
+        Should be used with a write/primary session.
+        """
+        if isinstance(obj_in, dict):
+            update_data = obj_in
+        else:
+            update_data = obj_in.model_dump(exclude_unset=True)
+            
+        if update_data.get("password"):
+            hashed_password = get_password_hash(update_data["password"])
+            update_data["hashed_password"] = hashed_password
+            del update_data["password"]
+            
+        return super().update(session, db_obj=db_obj, obj_in=update_data)
+
 # Instantiate a global instance of the service to be used across the app
 user_service = UserService(User)

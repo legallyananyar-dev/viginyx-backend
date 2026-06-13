@@ -3,13 +3,21 @@ from enum import Enum
 from uuid import uuid4
 from sqlmodel import Field, SQLModel
 from uuid import UUID, uuid4
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 
 
 class UserRole(str, Enum):
+    SUPER_ADMIN = "super_admin"
     ADMIN = "admin"
     USER = "user"
+    CLINIC_ADMIN = "clinic_admin"
+    CLINIC_USER = "clinic_user"
     
+class UserType(str, Enum):
+    PATIENT = "patient"
+    DOCTOR = "doctor"
+    
+
 class UserBase(SQLModel):
     """
     Base user properties shared across different user models.
@@ -21,12 +29,31 @@ class UserBase(SQLModel):
         default_factory=uuid4,
         primary_key=True
     )
+    user_type: UserType = Field(default=UserType.PATIENT)
+    first_name: str | None = Field(default=None)
+    last_name: str | None = Field(default=None)
+    phone_number: str | None = Field(default=None)
+    organization_id: UUID | None = Field(default=None, foreign_key="organizations.id")
+    
+class OrganizationBase(SQLModel):
+    id: UUID = Field(default_factory=uuid4,primary_key=True)
+    name: str = Field(unique=True, index=True)
+    description: str | None = Field(default=None)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    license_no:str|None=Field(default=None)
+    
+
+class Organization(OrganizationBase, table=True):
+    __tablename__ = "organizations"
+    users: list["User"] = Relationship(back_populates="organization")
 
 class UserCreate(UserBase):
     """
     Schema used to validate data when creating a new user.
     """
     password: str
+    confirm_password: str
 
 class UserRead(UserBase):
     """
@@ -50,6 +77,7 @@ class User(UserBase, table=True):
     __tablename__ = "users"
     hashed_password: str
     passkeys: list["Passkeys"] = Relationship(back_populates="user")
+    organization: Organization | None = Relationship(back_populates="users")
 
 class Token(SQLModel):
     """

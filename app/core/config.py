@@ -1,6 +1,8 @@
 import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import computed_field
+from typing import ClassVar
+
 
 # Determines which environment file to load (default is dev)
 ENVIRONMENT = os.getenv("ENVIRONMENT", "dev")
@@ -36,6 +38,20 @@ class Settings(BaseSettings):
 
     #Hashing key
     hashing_secret_key: str 
+
+    #Cookie configuration
+    cookie_secure: bool = True
+    cookie_samesite: str = "None"
+    cookie_domain: str | None = None
+    cookie_path: str = "/"
+
+
+    cors_config: ClassVar[dict] = {
+        "allow_origins": ["http://localhost:3000","http://localhost:4001"],
+        "allow_credentials": True,
+        "allow_methods": ["*"],
+        "allow_headers": ["*"],
+    }
 
     @computed_field
     @property
