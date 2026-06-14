@@ -10,7 +10,8 @@ dependencies = [
     "sqlmodel>=0.0.21",
     "psycopg[binary]>=3.2.1",
     "passlib[bcrypt]>=1.7.4",
-    "PyJWT>=2.8.0"
+    "PyJWT>=2.8.0",
+    "langchain-google-genai>=1.0.0"
 ]
 
 [tool.fastapi]

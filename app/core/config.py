@@ -7,6 +7,9 @@ from typing import ClassVar
 # Determines which environment file to load (default is dev)
 ENVIRONMENT = os.getenv("ENVIRONMENT", "dev")
 
+from dotenv import load_dotenv
+load_dotenv(f".env.{ENVIRONMENT}")
+
 class Settings(BaseSettings):
     """
     Application settings and configurations.

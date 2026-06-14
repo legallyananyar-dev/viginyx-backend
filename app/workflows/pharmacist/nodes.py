@@ -79,14 +79,11 @@ def intent_router(state: PharmacistState):
     else:
         return [Send("adr_calculation_node", state)]
 
-async def input_validation_node(state: PharmacistState) -> dict:
+async def input_validation_node(state: PharmacistState, config: dict) -> dict:
+    llm = config.get("configurable", {}).get("llm")
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                "http://localhost:8000/api/drugs/validate", 
-                json={"drug_names": state.get("drug_list", [])}
-            )
-            return {}
+        await llm.ainvoke(f"Validate these drugs in the Indian pharmacy context: {state.get('drug_list', [])}")
+        return {}
     except Exception as e:
         return {"error": f"input_validation_node error: {str(e)}"}
 
@@ -102,22 +99,32 @@ class NaranjoAssessment(BaseModel):
     total_score: int = Field(description="Sum of all question scores")
     causality: str = Field(description="Definite (>=9), Probable (5-8), Possible (1-4), Doubtful (<=0)")
 
-async def adr_calculation_node(state: PharmacistState) -> dict:
+class ADRMockResponse(BaseModel):
+    known_reactions: list[str] = Field(description="List of known adverse reactions for these drugs")
+    clinical_notes: str = Field(description="Clinical notes on the interaction")
+
+async def adr_calculation_node(state: PharmacistState, config: dict) -> dict:
+    llm = config.get("configurable", {}).get("llm")
+    if not llm:
+        return {"error": "LLM not provided in config"}
+        
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                "http://localhost:8000/api/adr/score",
-                json={
-                    "thread_id": state.get("thread_id"),
-                    "drug_list": state.get("drug_list", []),
-                    "symptoms": state.get("symptoms", [])
-                }
-            )
-            api_data = resp.json() if resp.status_code == 200 else {}
-            return {
-                "adr_api_response": api_data,
-                "pvpi_payload": api_data.get("pvpi_draft", {})
-            }
+        system_prompt = "You are a clinical pharmacovigilance database. Provide known adverse reactions and clinical notes for the given drugs and symptoms."
+        human_prompt = f"Drugs: {state.get('drug_list', [])}\nSymptoms: {state.get('symptoms', [])}"
+        
+        structured_llm = llm.with_structured_output(ADRMockResponse)
+        response = await structured_llm.ainvoke([
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=human_prompt)
+        ])
+        
+        api_data = response.model_dump()
+        api_data["pvpi_draft"] = {}
+        
+        return {
+            "adr_api_response": api_data,
+            "pvpi_payload": {}
+        }
     except Exception as e:
         return {"error": f"adr_calculation_node error: {str(e)}"}
 
@@ -196,40 +203,33 @@ Answer all 10 Naranjo questions. Calculate total score and causality."""
     except Exception as e:
         return {"error": f"naranjo_node error: {str(e)}"}
 
-async def dpdp_consent_node(state: PharmacistState) -> dict:
+async def dpdp_consent_node(state: PharmacistState, config: dict) -> dict:
+    llm = config.get("configurable", {}).get("llm")
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                "http://localhost:8000/api/consent/check",
-                json={"patient_id": state.get("patient_id")}
-            )
-            data = resp.json() if resp.status_code == 200 else {"consent_given": False}
-            consent_status = data.get("consent_given", False)
+        res = await llm.ainvoke(f"Should we assume consent for patient {state.get('patient_id')}? (Mocking True for now)")
+        consent_status = True
+        
+        updates = {"consent_status": consent_status}
+        if not consent_status:
+            updates["patient_id"] = "***MASKED***"
             
-            updates = {"consent_status": consent_status}
-            if not consent_status:
-                updates["patient_id"] = "***MASKED***"
-                
-            return updates
+        return updates
     except Exception as e:
         return {"error": f"dpdp_consent_node error: {str(e)}"}
 
-async def qc_validation_node(state: PharmacistState) -> dict:
+class QCMock(BaseModel):
+    overall: str = Field(description="'pass' or 'fail'")
+    flags: list[dict] = Field(description="List of flags")
+
+async def qc_validation_node(state: PharmacistState, config: dict) -> dict:
+    llm = config.get("configurable", {}).get("llm")
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                "http://localhost:8000/api/qc/validate",
-                json={
-                    "thread_id": state.get("thread_id"),
-                    "drug_list": state.get("drug_list", []),
-                    "patient_id": state.get("patient_id")
-                }
-            )
-            data = resp.json() if resp.status_code == 200 else {"overall": "fail", "flags": []}
-            return {
-                "qc_result": data.get("overall", "fail"),
-                "qc_flags": data.get("flags", [])
-            }
+        structured_llm = llm.with_structured_output(QCMock)
+        res = await structured_llm.ainvoke(f"Validate QC for drugs: {state.get('drug_list')} and patient {state.get('patient_id')}. Mostly pass.")
+        return {
+            "qc_result": res.overall,
+            "qc_flags": res.flags
+        }
     except Exception as e:
         return {"error": f"qc_validation_node error: {str(e)}"}
 
@@ -276,49 +276,34 @@ def post_dispense_router(state: PharmacistState):
         Send("knowledge_card_node", state)
     ]
 
-async def compliance_node(state: PharmacistState) -> dict:
+async def compliance_node(state: PharmacistState, config: dict) -> dict:
+    llm = config.get("configurable", {}).get("llm")
     try:
-        async with httpx.AsyncClient() as client:
-            await client.post(
-                "http://localhost:8000/api/compliance/save",
-                json=state.get("compliance_log", {})
-            )
+        await llm.ainvoke(f"Log compliance record: {state.get('compliance_log', {})}")
         return {}
     except Exception as e:
         return {"error": f"compliance_node error: {str(e)}"}
 
-async def pvpi_report_node(state: PharmacistState) -> dict:
+async def pvpi_report_node(state: PharmacistState, config: dict) -> dict:
+    llm = config.get("configurable", {}).get("llm")
     try:
         if state.get("consent_status") is True:
-            async with httpx.AsyncClient() as client:
-                resp = await client.post(
-                    "http://localhost:8000/api/pvpi/submit",
-                    json=state.get("pvpi_payload", {})
-                )
-                data = resp.json() if resp.status_code == 200 else {}
-                pvpi_payload = state.get("pvpi_payload", {})
-                pvpi_payload.update(data)
-                return {"pvpi_payload": pvpi_payload}
+            res = await llm.ainvoke(f"Generate PVPI submission receipt for: {state.get('pvpi_payload', {})}")
+            pvpi_payload = state.get("pvpi_payload", {})
+            pvpi_payload["submission_receipt"] = res.content
+            return {"pvpi_payload": pvpi_payload}
         return {}
     except Exception as e:
         return {"error": f"pvpi_report_node error: {str(e)}"}
 
-async def knowledge_card_node(state: PharmacistState) -> dict:
+async def knowledge_card_node(state: PharmacistState, config: dict) -> dict:
+    llm = config.get("configurable", {}).get("llm")
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                "http://localhost:8000/api/knowledge/card",
-                json={
-                    "drug_list": state.get("drug_list", []),
-                    "qc_flags": state.get("qc_flags", []),
-                    "causality": state.get("naranjo_causality")
-                }
-            )
-            data = resp.json() if resp.status_code == 200 else {"summary": ""}
-            summary = data.get("summary", "")
-            print("\n=== KNOWLEDGE CARD ===")
-            print(summary)
-            print("======================\n")
-            return {"knowledge_card": summary}
+        res = await llm.ainvoke(f"Generate a brief 2-sentence clinical knowledge card for {state.get('drug_list')} considering {state.get('naranjo_causality')} causality.")
+        summary = res.content
+        print("\n=== KNOWLEDGE CARD ===")
+        print(summary)
+        print("======================\n")
+        return {"knowledge_card": summary}
     except Exception as e:
         return {"error": f"knowledge_card_node error: {str(e)}"}

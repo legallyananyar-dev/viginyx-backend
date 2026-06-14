@@ -5,7 +5,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from psycopg_pool import AsyncConnectionPool
 
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from app.workflows.pharmacist.graph import pharmacist_graph_builder
 from app.core.config import settings
@@ -24,11 +24,13 @@ pool = AsyncConnectionPool(
     conninfo=conn_string,
     max_size=20,
     kwargs={"autocommit": True, "prepare_threshold": 0},
+    open=False,
 )
 
 async def setup_checkpointer():
-    async with AsyncPostgresSaver(pool) as checkpointer:
-        await checkpointer.setup()
+    await pool.open()
+    checkpointer = AsyncPostgresSaver(pool)
+    await checkpointer.setup()
 
 class WorkflowInput(BaseModel):
     pharmacist_id: str
@@ -100,33 +102,36 @@ async def stream_pharmacist_workflow(payload: WorkflowInput, session: WriteSessi
     config = {
         "configurable": {
             "thread_id": unique_thread_id,
-            "llm": ChatOpenAI(model="gpt-4o", temperature=0)
-        }
+            "llm": ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
+        },
+        "run_name": f"pharmacist_adr_{unique_thread_id}",
+        "tags": ["pharmacist", "adr_workflow"]
     }
 
     async def event_generator():
         # Setup tables if they don't exist yet (safe to call multiple times)
-        async with AsyncPostgresSaver(pool) as checkpointer:
-            await checkpointer.setup()
+        await pool.open()
+        checkpointer = AsyncPostgresSaver(pool)
+        await checkpointer.setup()
             
-            # Compile graph with postgres checkpointer
-            graph = pharmacist_graph_builder.compile(checkpointer=checkpointer)
+        # Compile graph with postgres checkpointer
+        graph = pharmacist_graph_builder.compile(checkpointer=checkpointer)
 
-            # astream_events yields an event dictionary with name, event type, and data.
-            async for event in graph.astream_events(state_input, config=config, version="v2"):
-                kind = event["event"]
-                node_name = event["name"]
+        # astream_events yields an event dictionary with name, event type, and data.
+        async for event in graph.astream_events(state_input, config=config, version="v2"):
+            kind = event["event"]
+            node_name = event["name"]
+            
+            # Skip LangGraph internal events
+            if node_name == "LangGraph" or node_name.startswith("__"):
+                continue
                 
-                # Skip LangGraph internal events
-                if node_name == "LangGraph" or node_name.startswith("__"):
-                    continue
-                    
-                if kind == "on_chain_start":
-                    yield f"data: {json.dumps({'status': 'running', 'node': node_name})}\n\n"
-                
-                elif kind == "on_chain_end":
-                    output_data = event.get("data", {}).get("output")
-                    if output_data is not None:
-                        yield f"data: {json.dumps({'status': 'completed', 'node': node_name, 'output': output_data})}\n\n"
+            if kind == "on_chain_start":
+                yield f"data: {json.dumps({'status': 'running', 'node': node_name})}\n\n"
+            
+            elif kind == "on_chain_end":
+                output_data = event.get("data", {}).get("output")
+                if output_data is not None:
+                    yield f"data: {json.dumps({'status': 'completed', 'node': node_name, 'output': output_data})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
