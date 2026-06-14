@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.core.config import settings
-from app.api.routes import items, auth, users
+from app.api.routes import items, auth, users, pharmacist
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import write_engine, read_engine
 from app.core.exceptions import setup_exception_handlers
@@ -47,6 +47,7 @@ app.add_middleware(AuthMiddleware)
 app.include_router(auth.router, prefix=settings.api_v1_str)
 app.include_router(items.router, prefix=settings.api_v1_str)
 app.include_router(users.router, prefix=settings.api_v1_str)
+app.include_router(pharmacist.router, prefix=f"{settings.api_v1_str}/pharmacist", tags=["Pharmacist"])
 
 @app.get("/health-check", response_model=APIResponse[dict[str, str]])
 async def health_check() -> APIResponse[dict[str, str]]:

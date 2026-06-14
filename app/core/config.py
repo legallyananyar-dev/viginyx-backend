@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     # WebAuthn Configuration
     webauthn_rp_id: str  
     webauthn_rp_name: str 
+    webauthn_expected_origin: str = "http://localhost:4001"
 
     #Hashing key
     hashing_secret_key: str 
