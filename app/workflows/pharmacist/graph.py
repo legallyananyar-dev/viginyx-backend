@@ -5,18 +5,20 @@ from app.workflows.pharmacist.state import PharmacistState
 from app.workflows.pharmacist.nodes import (
     llm_parser_node,
     input_validation_node,
-    adr_calculation_node,
-    naranjo_node,
+    clinical_analysis_node,
     dpdp_consent_node,
     qc_validation_node,
     dispense_node,
     override_node,
     compliance_node,
     pvpi_report_node,
-    knowledge_card_node,
+    knowledge_card_node
+)
+from app.workflows.pharmacist.routers import (
     intent_router,
     qc_router,
-    post_dispense_router
+    post_dispense_router,
+    consent_router
 )
 
 def create_pharmacist_graph():
@@ -25,8 +27,7 @@ def create_pharmacist_graph():
     # Add nodes
     builder.add_node("llm_parser_node", llm_parser_node)
     builder.add_node("input_validation_node", input_validation_node)
-    builder.add_node("adr_calculation_node", adr_calculation_node)
-    builder.add_node("naranjo_node", naranjo_node)
+    builder.add_node("clinical_analysis_node", clinical_analysis_node)
     builder.add_node("dpdp_consent_node", dpdp_consent_node)
     builder.add_node("qc_validation_node", qc_validation_node)
     builder.add_node("dispense_node", dispense_node)
@@ -36,22 +37,28 @@ def create_pharmacist_graph():
     builder.add_node("knowledge_card_node", knowledge_card_node)
 
     # Flow definitions
-    builder.add_edge(START, "llm_parser_node")
+    builder.add_edge(START, "dpdp_consent_node")
+
+    # Consent Router
+    builder.add_conditional_edges(
+        "dpdp_consent_node",
+        consent_router,
+        {
+            "llm_parser_node": "llm_parser_node",
+            "END": END
+        }
+    )
 
     # Intent router
     builder.add_conditional_edges(
         "llm_parser_node",
         intent_router,
-        ["input_validation_node", "adr_calculation_node", "dpdp_consent_node"]
+        ["input_validation_node", "clinical_analysis_node"]
     )
-
-    # Naranjo execution follows ADR calculation
-    builder.add_edge("adr_calculation_node", "naranjo_node")
 
     # Merge back into qc_validation_node
     builder.add_edge("input_validation_node", "qc_validation_node")
-    builder.add_edge("naranjo_node", "qc_validation_node")
-    builder.add_edge("dpdp_consent_node", "qc_validation_node")
+    builder.add_edge("clinical_analysis_node", "qc_validation_node")
 
     # Route after QC
     builder.add_conditional_edges(

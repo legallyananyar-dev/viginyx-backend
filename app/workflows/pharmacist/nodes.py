@@ -1,15 +1,15 @@
 import json
-import httpx
 from langgraph.types import interrupt
 from langchain_core.messages import SystemMessage, HumanMessage
-from app.workflows.pharmacist.state import PharmacistState
-from app.core.database import write_engine
-from sqlmodel import Session
-from app.models.user import NaranjoResult
-
-from pydantic import BaseModel, Field
 from langchain_core.runnables import RunnableConfig
 from langsmith import traceable
+from sqlmodel import Session
+
+from app.workflows.pharmacist.state import PharmacistState
+from app.workflows.pharmacist.prompts import PARSER_SYSTEM_PROMPT, NARANJO_SYSTEM_PROMPT
+from app.workflows.pharmacist.schemas import ADRMockResponse, NaranjoAssessment, QCMock
+from app.core.database import write_engine
+from app.models.user import NaranjoResult
 
 @traceable(name="llm_parser_node", run_type="chain")
 async def llm_parser_node(state: PharmacistState, config: RunnableConfig) -> dict:
@@ -18,32 +18,8 @@ async def llm_parser_node(state: PharmacistState, config: RunnableConfig) -> dic
         if not llm:
             raise ValueError("LLM not provided in config")
 
-        system_prompt = """You are a clinical data extractor for
-an Indian pharmacy system.
-
-Extract the following from the pharmacist
-input text and return ONLY valid JSON.
-No explanation. No markdown. No preamble.
-
-Return this exact structure:
-{
-  "drug_list": ["drug name 1", "drug name 2"],
-  "symptoms": ["symptom 1", "symptom 2"],
-  "intent": "full_flow" or "adr_only"
-}
-
-Rules:
-- drug_list: all drugs mentioned, brand 
-  or generic names, as spoken
-- symptoms: all patient reported symptoms
-- intent: 
-    "full_flow" if any drug is mentioned
-    "adr_only"  if only symptoms, no drugs
-- If nothing found return empty lists
-- Never add fields outside this schema"""
-
         messages = [
-            SystemMessage(content=system_prompt),
+            SystemMessage(content=PARSER_SYSTEM_PROMPT),
             HumanMessage(content=state.get("raw_input", ""))
         ]
         
@@ -83,18 +59,6 @@ Rules:
             "symptoms": state.get("symptoms", [])
         }
 
-@traceable(name="intent_router", run_type="chain")
-def intent_router(state: PharmacistState):
-    intent = state.get("intent", "")
-    if intent == "full_flow":
-        return [
-            "input_validation_node",
-            "adr_calculation_node",
-            "dpdp_consent_node"
-        ]
-    else:
-        return ["adr_calculation_node"]
-
 @traceable(name="input_validation_node", run_type="chain")
 async def input_validation_node(state: PharmacistState, config: RunnableConfig) -> dict:
     llm = config.get("configurable", {}).get("llm")
@@ -104,100 +68,43 @@ async def input_validation_node(state: PharmacistState, config: RunnableConfig) 
     except Exception as e:
         return {"error": f"input_validation_node error: {str(e)}"}
 
-
-class NaranjoQuestionAnswer(BaseModel):
-    question_number: int = Field(description="The Naranjo question number (1-10)")
-    answer: str = Field(description="Yes, No, or Unknown")
-    score: int = Field(description="The score assigned for this answer")
-    reasoning: str = Field(description="Clinical reasoning for the answer")
-
-class NaranjoAssessment(BaseModel):
-    questions: list[NaranjoQuestionAnswer]
-    total_score: int = Field(description="Sum of all question scores")
-    causality: str = Field(description="Definite (>=9), Probable (5-8), Possible (1-4), Doubtful (<=0)")
-
-class ADRMockResponse(BaseModel):
-    known_reactions: list[str] = Field(description="List of known adverse reactions for these drugs")
-    clinical_notes: str = Field(description="Clinical notes on the interaction")
-
-@traceable(name="adr_calculation_node", run_type="chain")
-async def adr_calculation_node(state: PharmacistState, config: RunnableConfig) -> dict:
+@traceable(name="clinical_analysis_node", run_type="chain")
+async def clinical_analysis_node(state: PharmacistState, config: RunnableConfig) -> dict:
     llm = config.get("configurable", {}).get("llm")
     if not llm:
         return {"error": "LLM not provided in config"}
         
     try:
-        system_prompt = "You are a clinical pharmacovigilance database. Provide known adverse reactions and clinical notes for the given drugs and symptoms."
-        human_prompt = f"Drugs: {state.get('drug_list', [])}\nSymptoms: {state.get('symptoms', [])}"
+        # Step 1: ADR Calculation
+        adr_sys_prompt = "You are a clinical pharmacovigilance database. Provide known adverse reactions and clinical notes for the given drugs and symptoms."
+        adr_human_prompt = f"Drugs: {state.get('drug_list', [])}\nSymptoms: {state.get('symptoms', [])}"
         
-        structured_llm = llm.with_structured_output(ADRMockResponse)
-        response = await structured_llm.ainvoke([
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=human_prompt)
+        structured_adr_llm = llm.with_structured_output(ADRMockResponse)
+        adr_response = await structured_adr_llm.ainvoke([
+            SystemMessage(content=adr_sys_prompt),
+            HumanMessage(content=adr_human_prompt)
         ], config=config)
         
-        api_data = response.model_dump()
+        api_data = adr_response.model_dump()
         api_data["pvpi_draft"] = {}
         
-        return {
-            "adr_api_response": api_data,
-            "pvpi_payload": {}
-        }
-    except Exception as e:
-        return {"error": f"adr_calculation_node error: {str(e)}"}
-
-@traceable(name="naranjo_node", run_type="chain")
-async def naranjo_node(state: PharmacistState, config: RunnableConfig) -> dict:
-    llm = config.get("configurable", {}).get("llm")
-    if not llm:
-        return {"error": "LLM not provided in config"}
-
-    try:
-        # Step 1: Read raw ADR API data from state
-        api_data = state.get("adr_api_response", {})
-            
-        # Step 2: Prompt LLM
-        system_prompt = """You are a clinical pharmacovigilance expert.
-
-You will be given:
-- A list of drugs the patient is taking
-- Symptoms the patient reported
-- ADR API data about known reactions
-
-Answer all 10 Naranjo questions using only the information provided.
-
-Never ask for more information.
-Never say unknown unless truly no data exists.
-Use clinical reasoning to infer answers.
-
-Q1. Are there previous conclusive reports of this reaction? Yes +1 | No 0 | Unknown 0
-Q2. Did the adverse reaction appear after the suspected drug was given? Yes +2 | No -1 | Unknown 0
-Q3. Did the adverse reaction improve when the drug was discontinued or a specific antagonist was given? Yes +1 | No 0 | Unknown 0
-Q4. Did the adverse reaction reappear when the drug was re-administered? Yes +2 | No -1 | Unknown 0
-Q5. Are there alternative causes that could have caused the reaction on their own? Yes -1 | No +2 | Unknown 0
-Q6. Did the reaction reappear when a placebo was given? Yes -1 | No +1 | Unknown 0
-Q7. Was the drug detected in the blood or other fluids in a toxic concentration? Yes +1 | No 0 | Unknown 0
-Q8. Was the reaction more severe when the dose was increased or less severe when the dose was decreased? Yes +1 | No 0 | Unknown 0
-Q9. Did the patient have a similar reaction to the same or similar drugs in a previous exposure? Yes +1 | No 0 | Unknown 0
-Q10. Was the adverse reaction confirmed by any objective evidence? Yes +1 | No 0 | Unknown 0"""
-        
-        human_prompt = f"""
+        # Step 2: Naranjo Evaluation
+        naranjo_human_prompt = f"""
 Drugs: {state.get('drug_list', [])}
 Symptoms: {state.get('symptoms', [])}
 ADR API data: {json.dumps(api_data)}
 
 Answer all 10 Naranjo questions. Calculate total score and causality."""
         
-        structured_llm = llm.with_structured_output(NaranjoAssessment)
-        assessment = await structured_llm.ainvoke([
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=human_prompt)
+        structured_naranjo_llm = llm.with_structured_output(NaranjoAssessment)
+        assessment = await structured_naranjo_llm.ainvoke([
+            SystemMessage(content=NARANJO_SYSTEM_PROMPT),
+            HumanMessage(content=naranjo_human_prompt)
         ], config=config)
 
         assessment_dict = assessment.model_dump()
 
         try:
-            # Save to database synchronously
             with Session(write_engine) as session:
                 result = NaranjoResult(
                     pharmacist_id=state.get("pharmacist_id"),
@@ -220,7 +127,7 @@ Answer all 10 Naranjo questions. Calculate total score and causality."""
             "pvpi_payload": api_data.get("pvpi_draft", {})
         }
     except Exception as e:
-        return {"error": f"naranjo_node error: {str(e)}"}
+        return {"error": f"clinical_analysis_node error: {str(e)}"}
 
 @traceable(name="dpdp_consent_node", run_type="chain")
 async def dpdp_consent_node(state: PharmacistState, config: RunnableConfig) -> dict:
@@ -237,10 +144,6 @@ async def dpdp_consent_node(state: PharmacistState, config: RunnableConfig) -> d
     except Exception as e:
         return {"error": f"dpdp_consent_node error: {str(e)}"}
 
-class QCMock(BaseModel):
-    overall: str = Field(description="'pass' or 'fail'")
-    flags: list[dict] = Field(description="List of flags")
-
 @traceable(name="qc_validation_node", run_type="chain")
 async def qc_validation_node(state: PharmacistState, config: RunnableConfig) -> dict:
     llm = config.get("configurable", {}).get("llm")
@@ -253,13 +156,6 @@ async def qc_validation_node(state: PharmacistState, config: RunnableConfig) -> 
         }
     except Exception as e:
         return {"error": f"qc_validation_node error: {str(e)}"}
-
-def qc_router(state: PharmacistState) -> str:
-    res = state.get("qc_result", "fail")
-    if res == "pass":
-        return "dispense_node"
-    else:
-        return "override_node"
 
 @traceable(name="dispense_node", run_type="chain")
 def dispense_node(state: PharmacistState) -> dict:
@@ -291,14 +187,6 @@ def override_node(state: PharmacistState) -> dict:
         }
     except Exception as e:
         return {"error": f"override_node error: {str(e)}"}
-
-@traceable(name="post_dispense_router", run_type="chain")
-def post_dispense_router(state: PharmacistState):
-    return [
-        "compliance_node",
-        "pvpi_report_node",
-        "knowledge_card_node"
-    ]
 
 @traceable(name="compliance_node", run_type="chain")
 async def compliance_node(state: PharmacistState, config: RunnableConfig) -> dict:
