@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = None
     grok_api_key: str | None = None
 
+    # Checkpointer Configuration
+    checkpointer_backend: str = "memory" # Options: "memory", "postgres"
+
 
     cors_config: ClassVar[dict] = {
         "allow_origins": ["http://localhost:3000","http://localhost:4001"],

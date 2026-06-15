@@ -8,6 +8,8 @@ from app.core.exceptions import setup_exception_handlers
 from app.schemas.response import APIResponse
 from sqlmodel import SQLModel
 
+from app.core.checkpointer import shutdown_checkpointer
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -17,6 +19,8 @@ async def lifespan(app: FastAPI):
     yield
     
     # --- Shutdown Logic ---
+    # Clean up the checkpointer connection pool (if postgres)
+    await shutdown_checkpointer()
     # Clean up the database connection pools on shutdown
     write_engine.dispose()
     read_engine.dispose()
