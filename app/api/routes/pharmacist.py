@@ -3,10 +3,9 @@ import asyncio
 from fastapi import APIRouter, Request, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from psycopg_pool import AsyncConnectionPool
 
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from langgraph.checkpoint.memory import MemorySaver
 from app.workflows.pharmacist.graph import pharmacist_graph_builder
 from app.core.config import settings
 from app.core.database import WriteSessionDep
@@ -18,19 +17,12 @@ from sqlmodel import select
 
 router = APIRouter()
 
-# Prepare connection string for psycopg (remove sqlalchemy adapter prefix if present)
-conn_string = settings.sqlalchemy_database_uri.replace("postgresql+psycopg://", "postgresql://")
-pool = AsyncConnectionPool(
-    conninfo=conn_string,
-    max_size=20,
-    kwargs={"autocommit": True, "prepare_threshold": 0},
-    open=False,
-)
+
+memory_saver = MemorySaver()
 
 async def setup_checkpointer():
-    await pool.open()
-    checkpointer = AsyncPostgresSaver(pool)
-    await checkpointer.setup()
+    pass
+
 
 class WorkflowInput(BaseModel):
     pharmacist_id: str
@@ -92,7 +84,7 @@ async def stream_pharmacist_workflow(payload: WorkflowInput, session: WriteSessi
         "pharmacist_id": payload.pharmacist_id,
         "pharmacy_id": str(pharmacist.organization_id) if pharmacist.organization_id else "",
         "patient_id": str(patient.id),
-        "raw_input": payload.additional_notes or "",
+        "raw_input": payload.additional_notes or "No additional notes provided.",
         "drug_list": drug_list,
         "symptoms": symptom_list,
         "consent_status": payload.patient_consent
@@ -109,29 +101,37 @@ async def stream_pharmacist_workflow(payload: WorkflowInput, session: WriteSessi
     }
 
     async def event_generator():
-        # Setup tables if they don't exist yet (safe to call multiple times)
-        await pool.open()
-        checkpointer = AsyncPostgresSaver(pool)
-        await checkpointer.setup()
-            
-        # Compile graph with postgres checkpointer
-        graph = pharmacist_graph_builder.compile(checkpointer=checkpointer)
+        # Compile graph with memory checkpointer
+        graph = pharmacist_graph_builder.compile(checkpointer=memory_saver)
 
-        # astream_events yields an event dictionary with name, event type, and data.
-        async for event in graph.astream_events(state_input, config=config, version="v2"):
-            kind = event["event"]
-            node_name = event["name"]
-            
-            # Skip LangGraph internal events
-            if node_name == "LangGraph" or node_name.startswith("__"):
-                continue
+        VALID_NODES = {
+            "llm_parser_node", "input_validation_node", "adr_calculation_node", 
+            "naranjo_node", "dpdp_consent_node", "qc_validation_node", 
+            "dispense_node", "override_node", "compliance_node", 
+            "pvpi_report_node", "knowledge_card_node"
+        }
+
+        try:
+            # astream_events yields an event dictionary with name, event type, and data.
+            async for event in graph.astream_events(state_input, config=config, version="v2"):
+                kind = event["event"]
+                node_name = event["name"]
                 
-            if kind == "on_chain_start":
-                yield f"data: {json.dumps({'status': 'running', 'node': node_name})}\n\n"
-            
-            elif kind == "on_chain_end":
-                output_data = event.get("data", {}).get("output")
-                if output_data is not None:
-                    yield f"data: {json.dumps({'status': 'completed', 'node': node_name, 'output': output_data})}\n\n"
+                # Only stream events for our actual graph nodes
+                if node_name not in VALID_NODES:
+                    continue
+                    
+                if kind == "on_chain_start":
+                    yield f"data: {json.dumps({'status': 'running', 'node': node_name})}\n\n"
+                
+                elif kind == "on_chain_end":
+                    output_data = event.get("data", {}).get("output")
+                    if output_data is not None:
+                        yield f"data: {json.dumps({'status': 'completed', 'node': node_name, 'output': output_data})}\n\n"
+        except asyncio.CancelledError:
+            # Client disconnected, gracefully stop the stream without error
+            return
+        except Exception as e:
+            yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
