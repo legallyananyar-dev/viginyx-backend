@@ -4,7 +4,7 @@ from fastapi import APIRouter, Request, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from langchain_google_genai import ChatGoogleGenerativeAI
+from app.core.llm import get_llm
 from langgraph.checkpoint.memory import MemorySaver
 from app.workflows.pharmacist.graph import pharmacist_graph_builder
 from app.core.config import settings
@@ -94,7 +94,7 @@ async def stream_pharmacist_workflow(payload: WorkflowInput, session: WriteSessi
     config = {
         "configurable": {
             "thread_id": unique_thread_id,
-            "llm": ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
+            "llm": get_llm(temperature=0)
         },
         "run_name": f"pharmacist_adr_{unique_thread_id}",
         "tags": ["pharmacist", "adr_workflow"]

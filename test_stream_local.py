@@ -1,7 +1,7 @@
 import asyncio
 from app.api.routes.pharmacist import pharmacist_graph_builder, pool
 from app.workflows.pharmacist.graph import PharmacistState
-from langchain_google_genai import ChatGoogleGenerativeAI
+from app.core.llm import get_llm
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 async def run_test():
@@ -15,7 +15,7 @@ async def run_test():
     config = {
         "configurable": {
             "thread_id": "test_thread",
-            "llm": ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
+            "llm": get_llm(temperature=0)
         }
     }
     

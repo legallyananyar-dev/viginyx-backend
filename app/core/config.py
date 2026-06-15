@@ -53,6 +53,14 @@ class Settings(BaseSettings):
     first_superuser: str | None = None
     first_superuser_password: str | None = None
 
+    # LLM Configuration
+    llm_provider: str = "google" # Options: "google", "openai", "anthropic", "grok"
+    llm_model: str = "gemini-2.5-flash"
+    chat_gpt_api_key: str | None = None
+    google_api_key: str | None = None
+    anthropic_api_key: str | None = None
+    grok_api_key: str | None = None
+
 
     cors_config: ClassVar[dict] = {
         "allow_origins": ["http://localhost:3000","http://localhost:4001"],
