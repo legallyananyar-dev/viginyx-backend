@@ -25,9 +25,13 @@ async def get_postgres_checkpointer() -> AsyncPostgresSaver:
     if _postgres_saver is None:
         conn_string = (
             f"postgresql://{settings.postgres_user}:{settings.postgres_password}"
-            f"@{settings.postgres_server}:{settings.postgres_port}/{settings.postgres_db}"
+            f"@{settings.postgres_server}:{settings.postgres_port}/{settings.postgres_db}?sslmode=require"
         )
-        _postgres_pool = AsyncConnectionPool(conninfo=conn_string, open=False)
+        _postgres_pool = AsyncConnectionPool(
+            conninfo=conn_string,
+            kwargs={"autocommit": True},
+            open=False
+        )
         await _postgres_pool.open()
         _postgres_saver = AsyncPostgresSaver(_postgres_pool)
         await _postgres_saver.setup()

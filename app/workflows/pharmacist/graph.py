@@ -109,44 +109,9 @@ def create_pharmacist_fda_graph():
             "END": END
         }
     )
+    builder.add_edge("llm_parser_node", END)
 
-    # Intent router
-    builder.add_conditional_edges(
-        "llm_parser_node",
-        intent_router,
-        ["input_validation_node", "clinical_analysis_node"]
-    )
 
-    # Merge back into qc_validation_node
-    builder.add_edge("input_validation_node", "qc_validation_node")
-    builder.add_edge("clinical_analysis_node", "qc_validation_node")
-
-    # Route after QC
-    builder.add_conditional_edges(
-        "qc_validation_node",
-        qc_router,
-        {
-            "dispense_node": "dispense_node",
-            "override_node": "override_node"
-        }
-    )
-
-    # Route after Dispense/Override
-    builder.add_conditional_edges(
-        "dispense_node",
-        post_dispense_router,
-        ["compliance_node", "pvpi_report_node", "knowledge_card_node"]
-    )
-    builder.add_conditional_edges(
-        "override_node",
-        post_dispense_router,
-        ["compliance_node", "pvpi_report_node", "knowledge_card_node"]
-    )
-
-    # Merge to END
-    builder.add_edge("compliance_node", END)
-    builder.add_edge("pvpi_report_node", END)
-    builder.add_edge("knowledge_card_node", END)
 
     # We don't compile with MemorySaver globally anymore.
     # We will compile it dynamically when provided with the Postgres checkpointer.

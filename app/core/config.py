@@ -54,12 +54,13 @@ class Settings(BaseSettings):
     first_superuser_password: str | None = None
 
     # LLM Configuration
-    llm_provider: str = "google" # Options: "google", "openai", "anthropic", "grok"
-    llm_model: str = "gemini-2.5-flash"
+    llm_provider: str = "ollama" # Options: "google", "openai", "anthropic", "grok", "ollama"
+    llm_model: str = "meta-llama/Llama-3.1-8B-Instruct"
     chat_gpt_api_key: str | None = None
     google_api_key: str | None = None
     anthropic_api_key: str | None = None
     grok_api_key: str | None = None
+    ollama_base_url: str | None = "http://localhost:11434/v1"
 
     # Checkpointer Configuration
     checkpointer_backend: str = "memory" # Options: "memory", "postgres"
@@ -76,7 +77,7 @@ class Settings(BaseSettings):
     @property
     def sqlalchemy_database_uri(self) -> str:
         """URI for primary (write) database"""
-        return f"postgresql+psycopg://{self.postgres_user}:{self.postgres_password}@{self.postgres_server}:{self.postgres_port}/{self.postgres_db}"
+        return f"postgresql+psycopg://{self.postgres_user}:{self.postgres_password}@{self.postgres_server}:{self.postgres_port}/{self.postgres_db}?sslmode=require"
 
     @computed_field
     @property
@@ -84,7 +85,7 @@ class Settings(BaseSettings):
         """URI for replica (read) database. Falls back to primary if no replica server is set."""
         server = self.postgres_replica_server or self.postgres_server
         port = self.postgres_replica_port or self.postgres_port
-        return f"postgresql+psycopg://{self.postgres_user}:{self.postgres_password}@{server}:{port}/{self.postgres_db}"
+        return f"postgresql+psycopg://{self.postgres_user}:{self.postgres_password}@{server}:{port}/{self.postgres_db}?sslmode=require"
 
     # Tell pydantic to load variables from the correct .env file
     model_config = SettingsConfigDict(

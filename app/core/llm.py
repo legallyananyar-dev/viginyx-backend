@@ -31,5 +31,14 @@ def get_llm(temperature: float = 0.0, **kwargs) -> BaseChatModel:
             api_key=settings.grok_api_key,
             **kwargs
         )
+    elif provider == "ollama":
+        # Using ChatOpenAI because vLLM exposes an OpenAI-compatible API
+        return ChatOpenAI(
+            model=settings.llm_model,
+            temperature=temperature,
+            api_key="not-needed",
+            base_url=settings.ollama_base_url,
+            **kwargs
+        )
     else:
         raise ValueError(f"Unsupported LLM provider: {provider}")

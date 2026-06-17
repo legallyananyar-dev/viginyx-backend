@@ -108,41 +108,18 @@ async def stream_pharmacist_workflow(payload: WorkflowInput, session: WriteSessi
             "dispense_node", "override_node", "compliance_node", 
             "pvpi_report_node", "knowledge_card_node"
         }
-
-        try:
-            # astream_events yields an event dictionary with name, event type, and data.
-            async for event in graph.astream_events(state_input, config=config, version="v2"):
-                kind = event["event"]
-                node_name = event["name"]
-                
-                # Only stream events for our actual graph nodes
-                if node_name not in VALID_NODES:
-                    continue
-                    
-                if kind == "on_chain_start":
-                    yield f"data: {json.dumps({'status': 'running', 'node': node_name})}\n\n"
-                
-                elif kind == "on_chain_end":
-                    output_data = event.get("data", {}).get("output")
-                    if output_data is not None:
-                        yield f"data: {json.dumps({'status': 'completed', 'node': node_name, 'output': output_data})}\n\n"
-        except asyncio.CancelledError:
-            # Client disconnected, gracefully stop the stream without error
-            return
-        except Exception as e:
-            yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
-
+        
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @router.post("/stream-fda")
 async def stream_fda_workflow(payload: WorkflowInput, session: WriteSessionDep):
     # Ensure pharmacist exists
-    pharmacist = user_service.get_by_id(session, payload.pharmacist_id)
+    pharmacist = user_service.get_by_id(session, user_id=payload.pharmacist_id)
     if not pharmacist:
         raise HTTPException(status_code=404, detail="Pharmacist not found")
 
     # Check if patient exists by phone number
-    patient = user_service.get_by_phone_number(session, payload.mobile_number)
+    patient = user_service.get_by_phone_number(session, phone_number=payload.mobile_number)
 
     if not patient:
         # Create new patient user
@@ -194,39 +171,10 @@ async def stream_fda_workflow(payload: WorkflowInput, session: WriteSessionDep):
         "tags": ["pharmacist", "adr_workflow"]
     }
 
-    async def event_generator():
-        # Compile graph with configured checkpointer
-        checkpointer = await get_checkpointer_async()
-        graph = pharmacist_fda_graph_builder.compile(checkpointer=checkpointer)
+    checkpointer = await get_checkpointer_async()
+    graph = pharmacist_fda_graph_builder.compile(checkpointer=checkpointer)
+    
+    # Run the graph to trigger the checkpointer
+    result = await graph.ainvoke(state_input, config)
 
-        VALID_NODES = {
-            "llm_parser_node", "input_validation_node", "adr_calculation_node", 
-            "naranjo_node", "dpdp_consent_node", "qc_validation_node", 
-            "dispense_node", "override_node", "compliance_node", 
-            "pvpi_report_node", "knowledge_card_node"
-        }
-
-        try:
-            # astream_events yields an event dictionary with name, event type, and data.
-            async for event in graph.astream_events(state_input, config=config, version="v2"):
-                kind = event["event"]
-                node_name = event["name"]
-                
-                # Only stream events for our actual graph nodes
-                if node_name not in VALID_NODES:
-                    continue
-                    
-                if kind == "on_chain_start":
-                    yield f"data: {json.dumps({'status': 'running', 'node': node_name})}\n\n"
-                
-                elif kind == "on_chain_end":
-                    output_data = event.get("data", {}).get("output")
-                    if output_data is not None:
-                        yield f"data: {json.dumps({'status': 'completed', 'node': node_name, 'output': output_data})}\n\n"
-        except asyncio.CancelledError:
-            # Client disconnected, gracefully stop the stream without error
-            return
-        except Exception as e:
-            yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
-
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    return {"success": "true", "thread_id": unique_thread_id}

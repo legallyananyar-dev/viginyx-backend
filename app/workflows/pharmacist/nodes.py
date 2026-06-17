@@ -14,43 +14,43 @@ from app.models.user import NaranjoResult
 @traceable(name="llm_parser_node", run_type="chain")
 async def llm_parser_node(state: PharmacistState, config: RunnableConfig) -> dict:
     try:
-        llm = config.get("configurable", {}).get("llm")
-        if not llm:
-            raise ValueError("LLM not provided in config")
+        # llm = config.get("configurable", {}).get("llm")
+        # if not llm:
+        #     raise ValueError("LLM not provided in config")
 
-        messages = [
-            SystemMessage(content=PARSER_SYSTEM_PROMPT),
-            HumanMessage(content=state.get("raw_input", ""))
-        ]
+        # messages = [
+        #     SystemMessage(content=PARSER_SYSTEM_PROMPT),
+        #     HumanMessage(content=state.get("raw_input", ""))
+        # ]
         
-        response = await llm.ainvoke(messages, config=config)
-        content = response.content.strip()
+        # response = await llm.ainvoke(messages, config=config)
+        # content = response.content.strip()
         
         # Clean up possible markdown json blocks
-        if content.startswith("```json"):
-            content = content[7:-3].strip()
-        elif content.startswith("```"):
-            content = content[3:-3].strip()
+        # if content.startswith("```json"):
+        #     content = content[7:-3].strip()
+        # elif content.startswith("```"):
+        #     content = content[3:-3].strip()
             
-        parsed = json.loads(content)
+        # parsed = json.loads(content)
         
-        existing_drugs = state.get("drug_list", [])
-        existing_symptoms = state.get("symptoms", [])
+        # existing_drugs = state.get("drug_list", [])
+        # existing_symptoms = state.get("symptoms", [])
         
-        parsed_drugs = parsed.get("drug_list", [])
-        parsed_symptoms = parsed.get("symptoms", [])
+        # parsed_drugs = parsed.get("drug_list", [])
+        # parsed_symptoms = parsed.get("symptoms", [])
         
-        combined_drugs = list(set(existing_drugs + parsed_drugs))
-        combined_symptoms = list(set(existing_symptoms + parsed_symptoms))
+        # combined_drugs = list(set(existing_drugs + parsed_drugs))
+        # combined_symptoms = list(set(existing_symptoms + parsed_symptoms))
         
-        intent = parsed.get("intent", "full_flow")
-        if combined_drugs:
-            intent = "full_flow"
+        # intent = parsed.get("intent", "full_flow")
+        # if combined_drugs:
+        #     intent = "full_flow"
             
         return {
-            "drug_list": combined_drugs,
-            "symptoms": combined_symptoms,
-            "intent": intent
+            "drug_list": [],
+            "symptoms": [],
+            "intent": ""
         }
     except Exception as e:
         return {
@@ -133,7 +133,7 @@ Answer all 10 Naranjo questions. Calculate total score and causality."""
 async def dpdp_consent_node(state: PharmacistState, config: RunnableConfig) -> dict:
     llm = config.get("configurable", {}).get("llm")
     try:
-        res = await llm.ainvoke(f"Should we assume consent for patient {state.get('patient_id')}? (Mocking True for now)", config=config)
+        # res = await llm.ainvoke(f"Should we assume consent for patient {state.get('patient_id')}? (Mocking True for now)", config=config)
         consent_status = True
         
         updates = {"consent_status": consent_status}

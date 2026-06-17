@@ -23,6 +23,13 @@ class UserService(BaseService[User, UserCreate, UserUpdate]):
         """
         statement = select(User).where(User.email == email)
         return session.exec(statement).first()
+
+    def get_by_phone_number(self, session: Session, *, phone_number: str) -> User | None:
+        """
+        Fetch a user by their phone number using a read/replica session.
+        """
+        statement = select(User).where(User.phone_number == phone_number)
+        return session.exec(statement).first()
     
     def create(self, session: Session, *, obj_in: UserCreate) -> User:
         """
