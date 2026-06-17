@@ -1,3 +1,7 @@
+from app.workflows.pharmacist.prompts import FDA_SYSTEM_PROMPT
+from langchain_core.prompts import ChatPromptTemplate
+from app.workflows.pharmacist.schemas import FDADrugInfoResponse
+from app.workflows.pharmacist.state import FDAState
 import json
 from langgraph.types import interrupt
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -10,6 +14,7 @@ from app.workflows.pharmacist.prompts import PARSER_SYSTEM_PROMPT, NARANJO_SYSTE
 from app.workflows.pharmacist.schemas import ADRMockResponse, NaranjoAssessment, QCMock
 from app.core.database import write_engine
 from app.models.user import NaranjoResult
+from pydantic import BaseModel, Field
 
 @traceable(name="llm_parser_node", run_type="chain")
 async def llm_parser_node(state: PharmacistState, config: RunnableConfig) -> dict:
@@ -222,3 +227,93 @@ async def knowledge_card_node(state: PharmacistState, config: RunnableConfig) ->
         return {"knowledge_card": summary}
     except Exception as e:
         return {"error": f"knowledge_card_node error: {str(e)}"}
+
+
+
+
+
+@traceable(name="fetch_fda_data_node", run_type="chain")
+def fetch_fda_data_node(state: FDAState,config:RunnableConfig) -> dict:
+    """
+    Fetches drug information and evaluates it against the patient's current symptoms.
+    """
+    
+    drug_list = state.get("drug_list", [])
+    symptoms = state.get("symptoms", [])
+    
+    if not drug_list:
+        return {"error": "No drugs provided in the state.", "fda_response": None}
+
+    # Initialize the LLM and bind it to your Pydantic model
+    # Use a highly capable model like GPT-4o or Gemini 1.5 Pro for complex schema extraction
+    llm = config.get("configurable", {}).get("llm")
+    structured_llm = llm.with_structured_output(FDADrugInfoResponse)
+
+   
+
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", FDA_SYSTEM_PROMPT),
+        ("human", "Drugs to analyze: {drugs}")
+    ])
+
+    # Create the chain
+    chain = prompt | structured_llm
+
+    try:
+        # Invoke the chain with state variables
+         # Pass BOTH variables to invoke
+        response: FDADrugInfoResponse = chain.invoke({
+            "drugs": ", ".join(drug_list),
+            "symptoms": ", ".join(symptoms) if symptoms else "None reported"
+        })
+        
+        # Return the new keys to update the state
+        return {
+            "fda_response": response,
+            "error": None
+        }
+        
+    except Exception as e:
+        return {
+            "error": f"Failed to generate structured FDA data: {str(e)}",
+            "fda_response": None
+        }
+
+
+@traceable(name="fda_llm_parser", run_type="chain")
+async def fda_llm_parser(state: FDAState, config: RunnableConfig) -> dict:
+    llm = config.get("configurable", {}).get("llm")
+    if not llm:
+        return {"error": "LLM not provided in config"}
+        
+    class ParsedInput(BaseModel):
+        drug_list: list[str] = Field(description="List of drugs mentioned in the input", default_factory=list)
+        symptoms_list: list[str] = Field(description="List of symptoms mentioned in the input", default_factory=list)
+
+    structured_llm = llm.with_structured_output(ParsedInput)
+    
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", "You are an expert pharmacist assistant. Extract a list of drugs and symptoms from the user's input. Return empty lists if none are found."),
+        ("human", "{raw_input}")
+    ])
+    
+    chain = prompt | structured_llm
+    
+    try:
+        response: ParsedInput = await chain.ainvoke({"raw_input": state.get("raw_input", "")})
+        
+        # Merge with existing lists in state if any
+        existing_drugs = set(state.get("drug_list", []) or [])
+        existing_symptoms = set(state.get("symptoms_list", []) or [])
+        
+        updated_drugs = list(existing_drugs.union(response.drug_list))
+        updated_symptoms = list(existing_symptoms.union(response.symptoms_list))
+        
+        return {
+            "drug_list": updated_drugs,
+            "symptoms_list": updated_symptoms,
+            "error": None
+        }
+    except Exception as e:
+        print(f"Error in fda_llm_parser: {e}")
+        return {"error": f"fda_llm_parser error: {str(e)}"}

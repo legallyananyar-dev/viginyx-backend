@@ -1,9 +1,11 @@
+from app.workflows.pharmacist.state import FDAState
 from app.workflows.pharmacist.graph import pharmacist_fda_graph_builder
 from app.services.user import user_service
 import json
 import asyncio
 from fastapi import APIRouter, Request, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 
 from app.core.llm import get_llm
@@ -150,16 +152,15 @@ async def stream_fda_workflow(payload: WorkflowInput, session: WriteSessionDep):
     drug_list = [payload.drugs] if isinstance(payload.drugs, str) else payload.drugs
     symptom_list = [payload.symptoms] if isinstance(payload.symptoms, str) else payload.symptoms
 
-    state_input = {
-        "thread_id": unique_thread_id,
-        "pharmacist_id": payload.pharmacist_id,
-        "pharmacy_id": str(pharmacist.organization_id) if pharmacist.organization_id else "",
-        "patient_id": str(patient.id),
-        "raw_input": payload.additional_notes or "No additional notes provided.",
-        "drug_list": drug_list,
-        "symptoms": symptom_list,
-        "consent_status": payload.patient_consent
-    }
+    fda_state:FDAState = FDAState(
+        thread_id=unique_thread_id,
+        pharmacist_id=payload.pharmacist_id,
+        pharmacy_id=str(pharmacist.organization_id) if pharmacist.organization_id else "",
+        patient_id=str(patient.id),
+        raw_input=payload.additional_notes or "No additional notes provided.",
+        drug_list=drug_list,
+        symptoms_list=symptom_list
+    )
 
     # Configuration for the graph using the unique thread_id
     config = {
@@ -171,10 +172,24 @@ async def stream_fda_workflow(payload: WorkflowInput, session: WriteSessionDep):
         "tags": ["pharmacist", "adr_workflow"]
     }
 
-    checkpointer = await get_checkpointer_async()
-    graph = pharmacist_fda_graph_builder.compile(checkpointer=checkpointer)
-    
-    # Run the graph to trigger the checkpointer
-    result = await graph.ainvoke(state_input, config)
+    async def event_generator():
+        checkpointer = await get_checkpointer_async()
+        graph = pharmacist_fda_graph_builder.compile(checkpointer=checkpointer)
+        
+        try:
+            # astream yields the state updates from each node
+            async for event in graph.astream(fda_state, config):
+                for node_name, state_update in event.items():
+                    payload = jsonable_encoder({
+                        "node": node_name,
+                        "state": state_update
+                    })
+                    yield f"data: {json.dumps(payload)}\n\n"
+            
+            # Send a done event
+            yield f"data: {json.dumps({'event': 'done'})}\n\n"
+        except Exception as e:
+            error_payload = json.dumps({"error": str(e)})
+            yield f"data: {error_payload}\n\n"
 
-    return {"success": "true", "thread_id": unique_thread_id}
+    return StreamingResponse(event_generator(), media_type="text/event-stream")

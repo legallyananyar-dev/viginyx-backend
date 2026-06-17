@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from typing import Optional, Literal
 
 class NaranjoQuestionAnswer(BaseModel):
     question_number: int = Field(description="The Naranjo question number (1-10)")
@@ -19,8 +20,7 @@ class QCMock(BaseModel):
     overall: str = Field(description="'pass' or 'fail'")
     flags: list[dict] = Field(description="List of flags")
 
-from pydantic import BaseModel, Field
-from typing import Optional, Literal
+
 
 class FDAContraindication(BaseModel):
     condition: str

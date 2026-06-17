@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     
     # Auth configuration
     secret_key: str
-    access_token_expire_minutes: int = 60 * 24 * 8 # 8 days
+    access_token_expire_minutes: int = 60 * 24 * 30 # 5 minutes
     refresh_token_expire_minutes: int = 60 * 24 * 30 # 30 days
     
     # Database connection parameters
@@ -60,7 +60,7 @@ class Settings(BaseSettings):
     google_api_key: str | None = None
     anthropic_api_key: str | None = None
     grok_api_key: str | None = None
-    ollama_base_url: str | None = "http://localhost:11434/v1"
+    ollama_base_url: str | None = "https://8080-01krc32prg8r3e6sd3v76vscg9.cloudspaces.litng.ai"
 
     # Checkpointer Configuration
     checkpointer_backend: str = "memory" # Options: "memory", "postgres"

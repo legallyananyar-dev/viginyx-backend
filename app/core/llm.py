@@ -31,13 +31,13 @@ def get_llm(temperature: float = 0.0, **kwargs) -> BaseChatModel:
             api_key=settings.grok_api_key,
             **kwargs
         )
-    elif provider == "ollama":
+    elif provider == "lightning-vllm":
         # Using ChatOpenAI because vLLM exposes an OpenAI-compatible API
         return ChatOpenAI(
-            model=settings.llm_model,
+            model="Qwen/Qwen2.5-7B-Instruct-AWQ",  # Must match the model running on the server
             temperature=temperature,
-            api_key="not-needed",
-            base_url=settings.ollama_base_url,
+            api_key="not-needed",                  # vLLM doesn't require a key by default
+            base_url="https://8000-01krc32prg8r3e6sd3v76vscg9.cloudspaces.litng.ai/v1", # Your Studio public URL + /v1
             **kwargs
         )
     else:

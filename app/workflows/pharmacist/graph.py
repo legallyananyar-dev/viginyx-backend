@@ -1,7 +1,9 @@
+from app.workflows.pharmacist.nodes import fda_llm_parser
+from app.workflows.pharmacist.nodes import fetch_fda_data_node
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
 
-from app.workflows.pharmacist.state import PharmacistState
+from app.workflows.pharmacist.state import PharmacistState, FDAState
 from app.workflows.pharmacist.nodes import (
     llm_parser_node,
     input_validation_node,
@@ -92,24 +94,27 @@ def create_pharmacist_graph():
     return builder
 
 def create_pharmacist_fda_graph():
-    builder = StateGraph(PharmacistState)
+    builder = StateGraph(FDAState)
     # Add nodes
-    builder.add_node("llm_parser_node", llm_parser_node)
-    builder.add_node("dpdp_consent_node", dpdp_consent_node)
+
+    builder.add_node("fda_llm_parser", fda_llm_parser)
+    # builder.add_node("dpdp_consent_node", dpdp_consent_node)
+    builder.add_node("fetch_fda_data_node", fetch_fda_data_node)
 
     # Flow definitions
-    builder.add_edge(START, "dpdp_consent_node")
+    builder.add_edge(START, "fda_llm_parser")
 
     # Consent Router
-    builder.add_conditional_edges(
-        "dpdp_consent_node",
-        consent_router,
-        {
-            "llm_parser_node": "llm_parser_node",
-            "END": END
-        }
-    )
-    builder.add_edge("llm_parser_node", END)
+    # builder.add_conditional_edges(
+    #     "dpdp_consent_node",
+    #     consent_router,
+    #     {
+    #         "fda_llm_parser": "fda_llm_parser",
+    #         "END": END
+    #     }
+    # )
+    builder.add_edge("fda_llm_parser", "fetch_fda_data_node")
+    builder.add_edge("fetch_fda_data_node", END)
 
 
 
