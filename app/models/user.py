@@ -34,6 +34,28 @@ class UserBase(SQLModel):
     last_name: str | None = Field(default=None)
     phone_number: str | None = Field(default=None)
     organization_id: UUID | None = Field(default=None, foreign_key="organizations.id")
+
+class PharmacistThread(SQLModel, table=True):
+    __tablename__ = "pharmacist_threads"
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    user_id: UUID = Field(foreign_key="users.id", index=True, nullable=False)
+    thread_id: str = Field(unique=True, index=True, nullable=False, description="LangGraph execution thread id")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+from sqlalchemy import Column
+from sqlalchemy.dialects.postgresql import JSONB
+
+class NaranjoResult(SQLModel, table=True):
+    __tablename__ = "naranjo_results"
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    pharmacist_id: UUID = Field(foreign_key="users.id", index=True, nullable=False)
+    patient_id: UUID = Field(foreign_key="users.id", index=True, nullable=False)
+    thread_id: str = Field(index=True, nullable=False)
+    naranjo_score: int = Field(default=0)
+    naranjo_causality: str = Field(default="Unknown")
+    adr_api_response: dict = Field(default_factory=dict, sa_column=Column(JSONB))
+    pvpi_payload: dict = Field(default_factory=dict, sa_column=Column(JSONB))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
 class OrganizationBase(SQLModel):
     id: UUID = Field(default_factory=uuid4,primary_key=True)
@@ -92,6 +114,15 @@ class TokenPayload(SQLModel):
     Schema for decoding the contents of the JWT token.
     """
     sub: str | None = None
+
+class PasskeyRead(SQLModel):
+    """
+    Schema for returning passkey info securely to the client.
+    """
+    id: UUID
+    device_type: str | None
+    created_at: datetime
+    last_used_at: datetime | None
 
 class Passkeys(SQLModel, table=True):
     """

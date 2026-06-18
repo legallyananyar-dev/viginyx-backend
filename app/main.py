@@ -1,27 +1,26 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.core.config import settings
-from app.api.routes import items, auth, users
+from app.api.routes import items, auth, users, pharmacist
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import write_engine, read_engine
 from app.core.exceptions import setup_exception_handlers
 from app.schemas.response import APIResponse
 from sqlmodel import SQLModel
 
-# CORS Middelware
-app.add_middleware(
-    CORSMiddleware,
-    **settings.cors_config
-)
+from app.core.checkpointer import shutdown_checkpointer
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize the database tables on startup (always against primary)
-    SQLModel.metadata.create_all(write_engine)
+    # Database is now managed by Alembic, do not run create_all here
+    pass
     
     yield
     
     # --- Shutdown Logic ---
+    # Clean up the checkpointer connection pool (if postgres)
+    await shutdown_checkpointer()
     # Clean up the database connection pools on shutdown
     write_engine.dispose()
     read_engine.dispose()
@@ -30,6 +29,13 @@ app = FastAPI(
     title=settings.project_name,
     openapi_url=f"{settings.api_v1_str}/openapi.json",
     lifespan=lifespan
+)
+
+
+# CORS Middelware
+app.add_middleware(
+    CORSMiddleware,
+    **settings.cors_config
 )
 
 # Register global exception handlers for consistent error structures
@@ -45,6 +51,7 @@ app.add_middleware(AuthMiddleware)
 app.include_router(auth.router, prefix=settings.api_v1_str)
 app.include_router(items.router, prefix=settings.api_v1_str)
 app.include_router(users.router, prefix=settings.api_v1_str)
+app.include_router(pharmacist.router, prefix=f"{settings.api_v1_str}/pharmacist", tags=["Pharmacist"])
 
 @app.get("/health-check", response_model=APIResponse[dict[str, str]])
 async def health_check() -> APIResponse[dict[str, str]]:
