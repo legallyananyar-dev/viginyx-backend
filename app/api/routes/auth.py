@@ -385,3 +385,8 @@ async def logout(response:Response):
     response.set_cookie("access_token", "", httponly=True, secure=settings.cookie_secure, samesite=settings.cookie_samesite, max_age=0)
     response.set_cookie("refresh_token", "", httponly=True, secure=settings.cookie_secure, samesite=settings.cookie_samesite, max_age=0)
     return APIResponse(data=None)
+
+@router.get('/ping')
+async def ping():
+    return APIResponse(data={'message':'pong'})
+    
