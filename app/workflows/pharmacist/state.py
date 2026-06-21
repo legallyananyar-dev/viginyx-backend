@@ -40,5 +40,5 @@ class FDAState(TypedDict):
     drug_list: list[str]
     symptoms_list:list[str]
     fda_response:NotRequired[Optional[FDADrugInfoResponse]]
-    error: Optional[str] = None
-    adr_indicator: ADRIndicator = ADRIndicator.UNKNOWN
+    error: NotRequired[Optional[str]]
+    adr_indicator: NotRequired[ADRIndicator]
