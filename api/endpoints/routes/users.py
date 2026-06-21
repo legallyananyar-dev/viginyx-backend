@@ -3,7 +3,7 @@ from typing import Any
 from uuid import UUID
 
 from api.core.database import ReadSessionDep, WriteSessionDep
-from api.api.deps import SuperAdminDep
+from api.endpoints.deps import SuperAdminDep
 from api.models.user import UserCreate, UserRead, UserUpdate
 from api.schemas.response import APIResponse
 from api.services.user import user_service
