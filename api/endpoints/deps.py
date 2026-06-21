@@ -1,11 +1,11 @@
-from app.services.user import user_service
+from api.services.user import user_service
 from typing import Annotated
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 
-from app.core.config import settings
-from app.core.database import ReadSessionDep
-from app.models.user import User, UserRole
+from api.core.config import settings
+from api.core.database import ReadSessionDep
+from api.models.user import User, UserRole
 
 # This configures FastAPI to extract the bearer token from the Authorization header
 # Using auto_error=False so it doesn't block requests with cookies

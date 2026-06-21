@@ -1,7 +1,7 @@
 from cryptography.utils import Enum
 from sqlalchemy.util.typing import NotRequired
 from typing import Optional
-from app.workflows.pharmacist.schemas import FDADrugInfoResponse
+from api.workflows.pharmacist.schemas import FDADrugInfoResponse
 from typing import TypedDict, List, Dict, Any
 
 

@@ -1,5 +1,5 @@
 import asyncio
-from app.api.routes.pharmacist import pool
+from api.endpoints.routes.pharmacist import pool
 
 async def test():
     print("Opening pool...")

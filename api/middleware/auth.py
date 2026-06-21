@@ -1,12 +1,12 @@
-from app.schemas.response import APIErrorResponse
+from api.schemas.response import APIErrorResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import Request
 from starlette.responses import JSONResponse
 import jwt
 
-from app.core.config import settings
-from app.core.security import ALGORITHM
-from app.models.user import TokenPayload
+from api.core.config import settings
+from api.core.security import ALGORITHM
+from api.models.user import TokenPayload
 
 class AuthMiddleware(BaseHTTPMiddleware):
     # Paths that do not require authentication

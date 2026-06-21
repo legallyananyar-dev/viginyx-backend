@@ -6,9 +6,9 @@ import os
 os.environ.setdefault("ENVIRONMENT", "dev")
 
 from sqlmodel import Session, select
-from app.core.database import write_engine
-from app.core.security import get_password_hash
-from app.models.user import User, Organization, UserRole, UserType
+from api.core.database import write_engine
+from api.core.security import get_password_hash
+from api.models.user import User, Organization, UserRole, UserType
 from uuid import uuid4
 from datetime import datetime, timezone
 

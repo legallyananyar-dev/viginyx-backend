@@ -1,14 +1,18 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from app.core.config import settings
-from app.api.routes import items, auth, users, pharmacist
+from api.core.config import settings
+from api.endpoints.routes import items, auth, users, pharmacist
 from fastapi.middleware.cors import CORSMiddleware
-from app.core.database import write_engine, read_engine
-from app.core.exceptions import setup_exception_handlers
-from app.schemas.response import APIResponse
+from api.core.database import write_engine, read_engine
+from api.core.exceptions import setup_exception_handlers
+from api.schemas.response import APIResponse
 from sqlmodel import SQLModel
 
-from app.core.checkpointer import shutdown_checkpointer
+from api.core.checkpointer import shutdown_checkpointer
 
 
 @asynccontextmanager
@@ -42,7 +46,7 @@ app.add_middleware(
 setup_exception_handlers(app)
 
 # Auth Middleware
-from app.middleware.auth import AuthMiddleware
+from api.middleware.auth import AuthMiddleware
 app.add_middleware(AuthMiddleware)
 
 

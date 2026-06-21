@@ -1,6 +1,6 @@
 import asyncio
 from psycopg import AsyncConnection
-from app.api.routes.pharmacist import conn_string
+from api.endpoints.routes.pharmacist import conn_string
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 async def test():

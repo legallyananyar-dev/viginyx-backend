@@ -1,22 +1,22 @@
 import jwt
 from datetime import datetime, timezone, timedelta
-from app.core.security import verify_password, ALGORITHM
-from app.schemas.response import LoginRequest, APIResponse
-from app.core.security import create_refresh_token
-from app.core.security import create_access_token
+from api.core.security import verify_password, ALGORITHM
+from api.schemas.response import LoginRequest, APIResponse
+from api.core.security import create_refresh_token
+from api.core.security import create_access_token
 from fastapi import Response, Request
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.api.deps import CurrentUserDep
-from app.core.database import ReadSessionDep, WriteSessionDep
-from app.core.config import settings
+from api.endpoints.deps import CurrentUserDep
+from api.core.database import ReadSessionDep, WriteSessionDep
+from api.core.config import settings
 from pydantic import BaseModel
 from sqlmodel import select
-from app.models.user import User, UserCreate, UserRead, Token, TokenPayload, Passkeys, PasskeyRead
+from api.models.user import User, UserCreate, UserRead, Token, TokenPayload, Passkeys, PasskeyRead
 from webauthn import generate_registration_options, verify_registration_response, options_to_json, generate_authentication_options, verify_authentication_response
 from webauthn.helpers import base64url_to_bytes, bytes_to_base64url
 
-from app.services.user import user_service
+from api.services.user import user_service
 from typing import Dict, Any
 from uuid import UUID
 import json

@@ -6,10 +6,10 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from sqlmodel import Session
-from app.core.database import write_engine
-from app.core.config import settings
-from app.services.user import user_service
-from app.models.user import UserCreate, UserRole, UserType
+from api.core.database import write_engine
+from api.core.config import settings
+from api.services.user import user_service
+from api.models.user import UserCreate, UserRole, UserType
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

@@ -2,11 +2,11 @@ from fastapi import APIRouter, HTTPException, status
 from typing import Any
 from uuid import UUID
 
-from app.core.database import ReadSessionDep, WriteSessionDep
-from app.api.deps import SuperAdminDep
-from app.models.user import UserCreate, UserRead, UserUpdate
-from app.schemas.response import APIResponse
-from app.services.user import user_service
+from api.core.database import ReadSessionDep, WriteSessionDep
+from api.endpoints.deps import SuperAdminDep
+from api.models.user import UserCreate, UserRead, UserUpdate
+from api.schemas.response import APIResponse
+from api.services.user import user_service
 
 router = APIRouter(prefix="/users", tags=["users"])
 

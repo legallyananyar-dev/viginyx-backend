@@ -1,7 +1,7 @@
 import asyncio
-from app.core.config import settings
-from app.workflows.pharmacist.graph import pharmacist_fda_graph_builder
-from app.core.checkpointer import get_checkpointer_async
+from api.core.config import settings
+from api.workflows.pharmacist.graph import pharmacist_fda_graph_builder
+from api.core.checkpointer import get_checkpointer_async
 
 async def main():
     print(f"Checkpointer backend: {settings.checkpointer_backend}")

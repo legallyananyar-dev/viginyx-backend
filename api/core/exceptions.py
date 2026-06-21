@@ -2,8 +2,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from app.schemas.response import APIErrorResponse
-from app.core.config import settings
+from api.schemas.response import APIErrorResponse
+from api.core.config import settings
 
 def setup_exception_handlers(app: FastAPI):
     """

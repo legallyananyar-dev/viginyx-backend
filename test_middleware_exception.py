@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 from starlette.middleware.base import BaseHTTPMiddleware
-from app.schemas.response import APIErrorResponse
+from api.schemas.response import APIErrorResponse
 
 app = FastAPI()
 
