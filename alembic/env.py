@@ -11,12 +11,12 @@ from alembic import context
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 # Import your settings to get the database URI
-from app.core.config import settings
+from api.core.config import settings
 
 # Import SQLModel and all of your models
 from sqlmodel import SQLModel
 # It's important to import all models so that SQLModel.metadata has all tables registered
-from app.models import user, item 
+from api.models import user, item 
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

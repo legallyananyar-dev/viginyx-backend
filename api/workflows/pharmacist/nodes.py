@@ -1,7 +1,7 @@
-from app.workflows.pharmacist.prompts import FDA_SYSTEM_PROMPT
+from api.workflows.pharmacist.prompts import FDA_SYSTEM_PROMPT
 from langchain_core.prompts import ChatPromptTemplate
-from app.workflows.pharmacist.schemas import FDADrugInfoResponse
-from app.workflows.pharmacist.state import FDAState
+from api.workflows.pharmacist.schemas import FDADrugInfoResponse
+from api.workflows.pharmacist.state import FDAState
 import json
 from langgraph.types import interrupt
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -9,11 +9,11 @@ from langchain_core.runnables import RunnableConfig
 from langsmith import traceable
 from sqlmodel import Session
 
-from app.workflows.pharmacist.state import PharmacistState
-from app.workflows.pharmacist.prompts import PARSER_SYSTEM_PROMPT, NARANJO_SYSTEM_PROMPT
-from app.workflows.pharmacist.schemas import ADRMockResponse, NaranjoAssessment, QCMock
-from app.core.database import write_engine
-from app.models.user import NaranjoResult
+from api.workflows.pharmacist.state import PharmacistState
+from api.workflows.pharmacist.prompts import PARSER_SYSTEM_PROMPT, NARANJO_SYSTEM_PROMPT
+from api.workflows.pharmacist.schemas import ADRMockResponse, NaranjoAssessment, QCMock
+from api.core.database import write_engine
+from api.models.user import NaranjoResult
 from pydantic import BaseModel, Field
 
 @traceable(name="llm_parser_node", run_type="chain")

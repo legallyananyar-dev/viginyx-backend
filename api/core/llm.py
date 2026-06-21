@@ -1,7 +1,7 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from langchain_xai import ChatXAI
-from app.core.config import settings
+from api.core.config import settings
 from langchain_core.language_models.chat_models import BaseChatModel
 
 def get_llm(temperature: float = 0.0, **kwargs) -> BaseChatModel:

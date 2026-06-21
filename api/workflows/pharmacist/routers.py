@@ -1,5 +1,5 @@
 from langsmith import traceable
-from app.workflows.pharmacist.state import PharmacistState
+from api.workflows.pharmacist.state import PharmacistState
 
 @traceable(name="intent_router", run_type="chain")
 def intent_router(state: PharmacistState):

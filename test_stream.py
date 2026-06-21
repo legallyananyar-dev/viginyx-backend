@@ -1,7 +1,7 @@
 import asyncio
-from app.api.routes.pharmacist import pharmacist_graph_builder
-from app.workflows.pharmacist.graph import PharmacistState
-from app.core.llm import get_llm
+from api.api.routes.pharmacist import pharmacist_graph_builder
+from api.workflows.pharmacist.graph import PharmacistState
+from api.core.llm import get_llm
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from psycopg_pool import AsyncConnectionPool
 

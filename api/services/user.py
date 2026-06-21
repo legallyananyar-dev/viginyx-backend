@@ -1,8 +1,8 @@
 from typing import Any
 from sqlmodel import Session, select
-from app.models.user import User, UserCreate, UserUpdate
-from app.services.base import BaseService
-from app.core.security import get_password_hash
+from api.models.user import User, UserCreate, UserUpdate
+from api.services.base import BaseService
+from api.core.security import get_password_hash
 
 class UserService(BaseService[User, UserCreate, UserUpdate]):
     """

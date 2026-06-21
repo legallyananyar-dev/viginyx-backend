@@ -1,5 +1,5 @@
 import asyncio
-from app.api.routes.pharmacist import conn_string
+from api.api.routes.pharmacist import conn_string
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 async def test():

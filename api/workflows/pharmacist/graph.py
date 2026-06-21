@@ -1,10 +1,10 @@
-from app.workflows.pharmacist.nodes import fda_llm_parser
-from app.workflows.pharmacist.nodes import fetch_fda_data_node
+from api.workflows.pharmacist.nodes import fda_llm_parser
+from api.workflows.pharmacist.nodes import fetch_fda_data_node
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
 
-from app.workflows.pharmacist.state import PharmacistState, FDAState
-from app.workflows.pharmacist.nodes import (
+from api.workflows.pharmacist.state import PharmacistState, FDAState
+from api.workflows.pharmacist.nodes import (
     llm_parser_node,
     input_validation_node,
     clinical_analysis_node,
@@ -16,7 +16,7 @@ from app.workflows.pharmacist.nodes import (
     pvpi_report_node,
     knowledge_card_node
 )
-from app.workflows.pharmacist.routers import (
+from api.workflows.pharmacist.routers import (
     intent_router,
     qc_router,
     post_dispense_router,

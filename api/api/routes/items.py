@@ -1,8 +1,8 @@
 from typing import Annotated
 from fastapi import APIRouter, Path, Query
-from app.models.item import Item, ItemCreate
-from app.api.deps import CurrentUserDep
-from app.schemas.response import APIResponse
+from api.models.item import Item, ItemCreate
+from api.api.deps import CurrentUserDep
+from api.schemas.response import APIResponse
 
 # Applying tags/prefix at the router level
 router = APIRouter(prefix="/items", tags=["items"])

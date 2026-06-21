@@ -2,7 +2,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from psycopg_pool import AsyncConnectionPool
-from app.core.config import settings
+from api.core.config import settings
 
 
 # Module-level singletons (initialized lazily)

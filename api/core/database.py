@@ -1,7 +1,7 @@
 from sqlmodel import Session, create_engine
 from typing import Annotated, Generator
 from fastapi import Depends
-from app.core.config import settings
+from api.core.config import settings
 
 # Create the Primary (Write) Database Engine
 write_engine = create_engine(
