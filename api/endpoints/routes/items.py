@@ -1,7 +1,7 @@
 from typing import Annotated
 from fastapi import APIRouter, Path, Query
 from api.models.item import Item, ItemCreate
-from api.api.deps import CurrentUserDep
+from api.endpoints.deps import CurrentUserDep
 from api.schemas.response import APIResponse
 
 # Applying tags/prefix at the router level

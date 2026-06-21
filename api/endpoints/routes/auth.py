@@ -7,7 +7,7 @@ from api.core.security import create_access_token
 from fastapi import Response, Request
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from api.api.deps import CurrentUserDep
+from api.endpoints.deps import CurrentUserDep
 from api.core.database import ReadSessionDep, WriteSessionDep
 from api.core.config import settings
 from pydantic import BaseModel
