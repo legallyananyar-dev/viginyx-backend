@@ -42,3 +42,6 @@ class FDAState(TypedDict):
     fda_response:NotRequired[Optional[FDADrugInfoResponse]]
     error: NotRequired[Optional[str]]
     adr_indicator: NotRequired[ADRIndicator]
+    naranjo_score:str
+    naranjo_causality:str
+    naranjo_assessment:NotRequired[Optional[dict]]

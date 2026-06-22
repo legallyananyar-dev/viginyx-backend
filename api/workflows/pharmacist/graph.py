@@ -101,6 +101,11 @@ def create_pharmacist_fda_graph():
     # builder.add_node("dpdp_consent_node", dpdp_consent_node)
     builder.add_node("fetch_fda_data_node", fetch_fda_data_node)
 
+    builder.add_node("clinical_analysis_node", clinical_analysis_node)
+    
+    from api.workflows.pharmacist.nodes import report_adr
+    builder.add_node("report_adr", report_adr)
+
     # Flow definitions
     builder.add_edge(START, "fda_llm_parser")
 
@@ -114,7 +119,9 @@ def create_pharmacist_fda_graph():
     #     }
     # )
     builder.add_edge("fda_llm_parser", "fetch_fda_data_node")
-    builder.add_edge("fetch_fda_data_node", END)
+    builder.add_edge("fetch_fda_data_node", "clinical_analysis_node")
+    builder.add_edge("clinical_analysis_node", "report_adr")
+    builder.add_edge("report_adr", END)
 
 
 

@@ -191,5 +191,44 @@ async def stream_fda_workflow(payload: WorkflowInput, session: WriteSessionDep):
         except Exception as e:
             error_payload = json.dumps({"error": str(e)})
             yield f"data: {error_payload}\n\n"
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+class ResumeInput(BaseModel):
+    user_input: dict
+
+@router.post("/workflow/{thread_id}/resume")
+async def resume_workflow(thread_id: str, payload: ResumeInput, session: WriteSessionDep):
+    """
+    Endpoint to resume an interrupted LangGraph workflow.
+    """
+    # 1. Setup the config using the provided thread_id
+    config = {
+        "configurable": {
+            "thread_id": thread_id,
+            "llm": get_llm(temperature=0)
+        }
+    }
+    
+    async def event_generator():
+        from langgraph.types import Command
+        checkpointer = await get_checkpointer_async()
+        
+        # Determine which graph builder to use depending on what was paused
+        # Assuming the FDA graph is what we are using primarily for these features right now
+        graph = pharmacist_fda_graph_builder.compile(checkpointer=checkpointer)
+        
+        try:
+            async for event in graph.astream(Command(resume=payload.user_input), config):
+                for node_name, state_update in event.items():
+                    payload_resp = jsonable_encoder({
+                        "node": node_name,
+                        "state": state_update
+                    })
+                    yield f"data: {json.dumps(payload_resp)}\n\n"
+                    
+            yield f"data: {json.dumps({'event': 'done'})}\n\n"
+        except Exception as e:
+            error_payload = json.dumps({"error": str(e)})
+            yield f"data: {error_payload}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")

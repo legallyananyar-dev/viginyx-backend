@@ -16,6 +16,11 @@ from api.core.database import write_engine
 from api.models.user import NaranjoResult
 from pydantic import BaseModel, Field
 
+from api.models.report import CreateADR
+from api.core.database import write_engine
+from sqlmodel import Session
+import uuid
+
 @traceable(name="llm_parser_node", run_type="chain")
 async def llm_parser_node(state: PharmacistState, config: RunnableConfig) -> dict:
     try:
@@ -74,26 +79,19 @@ async def input_validation_node(state: PharmacistState, config: RunnableConfig) 
         return {"error": f"input_validation_node error: {str(e)}"}
 
 @traceable(name="clinical_analysis_node", run_type="chain")
-async def clinical_analysis_node(state: PharmacistState, config: RunnableConfig) -> dict:
+async def clinical_analysis_node(state: FDAState, config: RunnableConfig) -> dict:
+    approved = interrupt("Start Clinical Analysis of the patient? Y/N:")
+    if not approved:
+        return {"error": "Clinical analysis not approved"}
     llm = config.get("configurable", {}).get("llm")
     if not llm:
         return {"error": "LLM not provided in config"}
         
     try:
-        # Step 1: ADR Calculation
-        adr_sys_prompt = "You are a clinical pharmacovigilance database. Provide known adverse reactions and clinical notes for the given drugs and symptoms."
-        adr_human_prompt = f"Drugs: {state.get('drug_list', [])}\nSymptoms: {state.get('symptoms', [])}"
         
-        structured_adr_llm = llm.with_structured_output(ADRMockResponse)
-        adr_response = await structured_adr_llm.ainvoke([
-            SystemMessage(content=adr_sys_prompt),
-            HumanMessage(content=adr_human_prompt)
-        ], config=config)
+        api_data = state.get("fda_response", {})
         
-        api_data = adr_response.model_dump()
-        api_data["pvpi_draft"] = {}
-        
-        # Step 2: Naranjo Evaluation
+        # Naranjo Evaluation
         naranjo_human_prompt = f"""
 Drugs: {state.get('drug_list', [])}
 Symptoms: {state.get('symptoms', [])}
@@ -117,8 +115,6 @@ Answer all 10 Naranjo questions. Calculate total score and causality."""
                     thread_id=state.get("thread_id"),
                     naranjo_score=assessment.total_score,
                     naranjo_causality=assessment.causality,
-                    adr_api_response=assessment_dict,
-                    pvpi_payload=api_data.get("pvpi_draft", {})
                 )
                 session.add(result)
                 session.commit()
@@ -126,10 +122,8 @@ Answer all 10 Naranjo questions. Calculate total score and causality."""
             print(f"Failed to save NaranjoResult to DB: {db_err}")
 
         return {
-            "adr_api_response": assessment_dict,
             "naranjo_score": assessment.total_score,
             "naranjo_causality": assessment.causality,
-            "pvpi_payload": api_data.get("pvpi_draft", {})
         }
     except Exception as e:
         return {"error": f"clinical_analysis_node error: {str(e)}"}
@@ -317,3 +311,44 @@ async def fda_llm_parser(state: FDAState, config: RunnableConfig) -> dict:
     except Exception as e:
         print(f"Error in fda_llm_parser: {e}")
         return {"error": f"fda_llm_parser error: {str(e)}"}
+
+
+
+@traceable(name="report_adr", run_type="chain")
+async def report_adr(state: FDAState, config: RunnableConfig) -> dict:
+    approved = interrupt("Do you want to report this ADR to PVPI? Y/N:")
+    if approved == "N" or approved == "n":
+        return {
+            "error": "ADR not reported to PVPI"
+        }
+    
+    try:
+        naranjo_score_val = 0
+        try:
+            naranjo_score_val = int(state.get("naranjo_score", 0))
+        except (ValueError, TypeError):
+            pass
+            
+        severity_val = state.get("naranjo_causality", "Unknown")
+        
+        with Session(write_engine) as session:
+            adr_record = CreateADR(
+                drug_name=state.get("drug_list", []),
+                symptoms=state.get("symptoms_list", []) or state.get("symptoms", []),
+                naranjo_score=naranjo_score_val,
+                dpdp_score=0,
+                overall_score=naranjo_score_val,
+                severity=severity_val,
+                reported_by_id=uuid.UUID(state.get("pharmacist_id")),
+                patient_id=uuid.UUID(state.get("patient_id")),
+                thread_id=state.get("thread_id")
+            )
+            session.add(adr_record)
+            session.commit()
+        
+        return {
+            "error": None
+        }
+    except Exception as e:
+        print(f"Error in report_adr: {e}")
+        return {"error": f"report_adr error: {str(e)}"}

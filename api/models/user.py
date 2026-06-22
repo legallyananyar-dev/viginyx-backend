@@ -53,8 +53,6 @@ class NaranjoResult(SQLModel, table=True):
     thread_id: str = Field(index=True, nullable=False)
     naranjo_score: int = Field(default=0)
     naranjo_causality: str = Field(default="Unknown")
-    adr_api_response: dict = Field(default_factory=dict, sa_column=Column(JSONB))
-    pvpi_payload: dict = Field(default_factory=dict, sa_column=Column(JSONB))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
 class OrganizationBase(SQLModel):

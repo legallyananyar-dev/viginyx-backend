@@ -5,7 +5,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from api.core.config import settings
-from api.endpoints.routes import items, auth, users, pharmacist
+from api.endpoints.routes import auth, users, pharmacist
 from fastapi.middleware.cors import CORSMiddleware
 from api.core.database import write_engine, read_engine
 from api.core.exceptions import setup_exception_handlers
@@ -53,7 +53,6 @@ app.add_middleware(AuthMiddleware)
 
 # Including routers without re-declaring prefix/tags if already defined in the router
 app.include_router(auth.router, prefix=settings.api_v1_str)
-app.include_router(items.router, prefix=settings.api_v1_str)
 app.include_router(users.router, prefix=settings.api_v1_str)
 app.include_router(pharmacist.router, prefix=f"{settings.api_v1_str}/pharmacist", tags=["Pharmacist"])
 
