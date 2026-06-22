@@ -40,15 +40,22 @@ def get_current_user(session: ReadSessionDep, request: Request, swagger_token: T
 # Dependency alias used to secure endpoints that require an authenticated user
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
 
-def get_super_admin_user(current_user: CurrentUserDep) -> User:
+class RoleChecker:
     """
-    Dependency that ensures the current user is a SUPER_ADMIN.
+    Dependency class to check if the current user has required roles.
+    If allowed_roles is None or empty, it won't check privileges.
     """
-    if current_user.role != UserRole.SUPER_ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="The user doesn't have enough privileges"
-        )
-    return current_user
+    def __init__(self, allowed_roles: list[UserRole] | None = None):
+        self.allowed_roles = allowed_roles
 
-SuperAdminDep = Annotated[User, Depends(get_super_admin_user)]
+    def __call__(self, current_user: CurrentUserDep) -> User:
+        if self.allowed_roles:
+            if current_user.role not in self.allowed_roles:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="The user doesn't have enough privileges"
+                )
+        return current_user
+
+# Retained for backward compatibility
+SuperAdminDep = Annotated[User, Depends(RoleChecker([UserRole.SUPER_ADMIN]))]

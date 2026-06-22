@@ -3,8 +3,10 @@ from typing import Any
 from uuid import UUID
 
 from api.core.database import ReadSessionDep, WriteSessionDep
-from api.endpoints.deps import SuperAdminDep
-from api.models.user import UserCreate, UserRead, UserUpdate
+from api.endpoints.deps import SuperAdminDep, RoleChecker
+from fastapi import Depends
+from typing import Annotated
+from api.models.user import UserCreate, UserRead, UserUpdate, User, UserRole
 from api.schemas.response import APIResponse
 from api.services.user import user_service
 
@@ -27,7 +29,6 @@ def get_users(
 def get_user(
     user_id: UUID,
     session: ReadSessionDep,
-    current_user: SuperAdminDep
 ):
     """
     Get a specific user by ID. Only SUPER_ADMIN can perform this.
@@ -67,10 +68,10 @@ def update_user(
     session: WriteSessionDep,
     user_id: UUID,
     user_in: UserUpdate,
-    current_user: SuperAdminDep
+    current_user: Annotated[User, Depends(RoleChecker([UserRole.SUPER_ADMIN, UserRole.ADMIN]))]
 ):
     """
-    Update a user. Only SUPER_ADMIN can perform this.
+    Update a user. Flexible role checking via RoleChecker.
     """
     user = user_service.get_by_id(session, user_id=str(user_id))
     if not user:
