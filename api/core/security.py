@@ -1,11 +1,9 @@
 from fastapi import HTTPException, status
 import jwt
 from datetime import datetime, timedelta, timezone
-from passlib.context import CryptContext
+import bcrypt
 from api.core.config import settings
 
-# Context for password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 ALGORITHM = "HS256"
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -13,16 +11,18 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Verifies a plain-text password against the stored hashed password.
     """
     # bcrypt restricts passwords to a maximum of 72 bytes
-    truncated_password = plain_password.encode("utf-8")[:72].decode("utf-8", "ignore")
-    return pwd_context.verify(truncated_password, hashed_password)
+    password_bytes = plain_password.encode("utf-8")[:72]
+    return bcrypt.checkpw(password_bytes, hashed_password.encode("utf-8"))
 
 def get_password_hash(password: str) -> str:
     """
     Hashes a plain-text password for secure storage.
     """
     # bcrypt restricts passwords to a maximum of 72 bytes
-    truncated_password = password.encode("utf-8")[:72].decode("utf-8", "ignore")
-    return pwd_context.hash(truncated_password)
+    password_bytes = password.encode("utf-8")[:72]
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password_bytes, salt)
+    return hashed.decode("utf-8")
 
 def create_access_token(user_id: str | int, expires_delta: timedelta | None = None) -> str:
     """
