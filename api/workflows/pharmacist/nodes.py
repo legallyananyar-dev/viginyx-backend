@@ -263,7 +263,7 @@ def fetch_fda_data_node(state: FDAState,config:RunnableConfig) -> dict:
         
         # Return the new keys to update the state
         return {
-            "fda_response": response,
+            "fda_response": response.model_dump(),
             "error": None
         }
         

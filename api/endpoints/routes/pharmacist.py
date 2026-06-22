@@ -173,6 +173,9 @@ async def stream_fda_workflow(payload: WorkflowInput, session: WriteSessionDep):
     }
 
     async def event_generator():
+        # Emit the thread_id first so the frontend can store it for /resume calls
+        yield f"data: {json.dumps({'event': 'metadata', 'thread_id': unique_thread_id})}\n\n"
+        
         checkpointer = await get_checkpointer_async()
         graph = pharmacist_fda_graph_builder.compile(checkpointer=checkpointer)
         
@@ -193,8 +196,10 @@ async def stream_fda_workflow(payload: WorkflowInput, session: WriteSessionDep):
             yield f"data: {error_payload}\n\n"
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
+from typing import Any
+
 class ResumeInput(BaseModel):
-    user_input: dict
+    user_input: Any
 
 @router.post("/workflow/{thread_id}/resume")
 async def resume_workflow(thread_id: str, payload: ResumeInput, session: WriteSessionDep):
