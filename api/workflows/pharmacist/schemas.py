@@ -64,3 +64,7 @@ class FDADrugInfo(BaseModel):
 class FDADrugInfoResponse(BaseModel):
     session_id: str
     drugs: list[FDADrugInfo]
+    adr_indicator: Literal["ADR_DETECTED", "NO_ADR_DETECTED", "UNKNOWN"] = Field(
+        default="UNKNOWN",
+        description="Whether the reported symptoms are likely an adverse drug reaction (ADR) based on the known side effects of the drugs."
+    )

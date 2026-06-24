@@ -247,7 +247,7 @@ def fetch_fda_data_node(state: FDAState,config:RunnableConfig) -> dict:
 
     prompt = ChatPromptTemplate.from_messages([
         ("system", FDA_SYSTEM_PROMPT),
-        ("human", "Drugs to analyze: {drugs}")
+        ("human", "Drugs to analyze: {drug_list}")
     ])
 
     # Create the chain
@@ -257,13 +257,14 @@ def fetch_fda_data_node(state: FDAState,config:RunnableConfig) -> dict:
         # Invoke the chain with state variables
          # Pass BOTH variables to invoke
         response: FDADrugInfoResponse = chain.invoke({
-            "drugs": ", ".join(drug_list),
+            "drug_list": ", ".join(drug_list),
             "symptoms": ", ".join(symptoms) if symptoms else "None reported"
         })
         
         # Return the new keys to update the state
         return {
             "fda_response": response.model_dump(),
+            "adr_indicator": response.adr_indicator,
             "error": None
         }
         

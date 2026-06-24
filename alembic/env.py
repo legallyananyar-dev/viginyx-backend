@@ -16,7 +16,7 @@ from api.core.config import settings
 # Import SQLModel and all of your models
 from sqlmodel import SQLModel
 # It's important to import all models so that SQLModel.metadata has all tables registered
-from api.models import user, item 
+from api.models import user, report
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
