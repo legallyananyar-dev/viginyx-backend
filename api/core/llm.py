@@ -10,6 +10,9 @@ def get_llm(temperature: float = 0.0, **kwargs) -> BaseChatModel:
     """
     provider = settings.llm_provider.lower()
     
+    # Provide a generous default max_tokens to prevent LengthFinishReasonError
+    # when using structured outputs or returning large content.
+    
     if provider == "google":
         return ChatGoogleGenerativeAI(
             model=settings.llm_model, 

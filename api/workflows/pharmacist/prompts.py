@@ -35,6 +35,8 @@ Never ask for more information.
 Never say unknown unless truly no data exists.
 Use clinical reasoning to infer answers.
 
+CRITICAL CONSTRAINT: Keep all 'reasoning' fields extremely concise. Maximum 10 words per reasoning field.
+
 Q1. Are there previous conclusive reports of this reaction? Yes +1 | No 0 | Unknown 0
 Q2. Did the adverse reaction appear after the suspected drug was given? Yes +2 | No -1 | Unknown 0
 Q3. Did the adverse reaction improve when the drug was discontinued or a specific antagonist was given? Yes +1 | No 0 | Unknown 0
@@ -48,9 +50,11 @@ Q10. Was the adverse reaction confirmed by any objective evidence? Yes +1 | No 0
 
 
  # Define the prompt instructions
-FDA_SYSTEM_PROMPT = FDA_SYSTEM_PROMPT = """You are a clinical pharmacy API engine connected to openFDA.
+FDA_SYSTEM_PROMPT = """You are a clinical pharmacy API engine connected to openFDA.
 Your job is to generate a structured FDADrugInfoResponse 
 for the provided list of drugs.
+
+CRITICAL CONSTRAINT: Keep all text fields ('pregnancy_summary', 'warning_text', 'mechanism', 'clinical_effect', 'reason') extremely concise. Maximum 10 words per text field.
 
 Patient Context:
 - Drugs provided: {drug_list}

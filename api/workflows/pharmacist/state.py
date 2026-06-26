@@ -30,6 +30,7 @@ class PharmacistState(TypedDict):
     compliance_log: dict
     knowledge_card: str
     error: str
+    patient_details: NotRequired[Optional[dict]]
 
 class FDAState(TypedDict):
     thread_id: str
@@ -42,6 +43,7 @@ class FDAState(TypedDict):
     fda_response:NotRequired[Optional[FDADrugInfoResponse]]
     error: NotRequired[Optional[str]]
     adr_indicator: NotRequired[ADRIndicator]
+    patient_details: NotRequired[Optional[dict]]
     naranjo_score:str
     naranjo_causality:str
     naranjo_assessment:NotRequired[Optional[dict]]

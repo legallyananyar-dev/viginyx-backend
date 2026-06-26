@@ -13,7 +13,7 @@ from api.workflows.pharmacist.state import PharmacistState
 from api.workflows.pharmacist.prompts import PARSER_SYSTEM_PROMPT, NARANJO_SYSTEM_PROMPT
 from api.workflows.pharmacist.schemas import ADRMockResponse, NaranjoAssessment, QCMock
 from api.core.database import write_engine
-from api.models.user import NaranjoResult
+from api.models.user import NaranjoResult, User
 from pydantic import BaseModel, Field
 
 from api.models.report import CreateADR
@@ -107,8 +107,21 @@ Answer all 10 Naranjo questions. Calculate total score and causality."""
 
         assessment_dict = assessment.model_dump()
 
+        patient_details = {}
         try:
             with Session(write_engine) as session:
+                patient_id = state.get("patient_id")
+                if patient_id:
+                    patient = session.get(User, patient_id)
+                    if patient:
+                        patient_details = {
+                            "id": str(patient.id),
+                            "first_name": patient.first_name,
+                            "last_name": patient.last_name,
+                            "email": patient.email,
+                            "phone_number": patient.phone_number,
+                        }
+
                 result = NaranjoResult(
                     pharmacist_id=state.get("pharmacist_id"),
                     patient_id=state.get("patient_id"),
@@ -119,11 +132,12 @@ Answer all 10 Naranjo questions. Calculate total score and causality."""
                 session.add(result)
                 session.commit()
         except Exception as db_err:
-            print(f"Failed to save NaranjoResult to DB: {db_err}")
+            print(f"Failed to save NaranjoResult to DB or fetch patient: {db_err}")
 
         return {
             "naranjo_score": assessment.total_score,
             "naranjo_causality": assessment.causality,
+            "patient_details": patient_details,
         }
     except Exception as e:
         return {"error": f"clinical_analysis_node error: {str(e)}"}
