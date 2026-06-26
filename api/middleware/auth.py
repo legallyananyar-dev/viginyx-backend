@@ -1,3 +1,6 @@
+from api.services.user import user_service
+from api.models.user import SessionData
+from api.core.database import redis_session
 from api.schemas.response import APIErrorResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import Request
@@ -7,6 +10,7 @@ import jwt
 from api.core.config import settings
 from api.core.security import ALGORITHM
 from api.models.user import TokenPayload
+
 
 class AuthMiddleware(BaseHTTPMiddleware):
     # Paths that do not require authentication
@@ -28,15 +32,15 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if request.method == "OPTIONS" or request.url.path in self.public_paths:
             return await call_next(request)
 
-        # 2. Extract Token
-        token = request.cookies.get("access_token")
-        if not token:
+        # 2. Extract Session ID
+        session_id = request.cookies.get("session_id")
+        if not session_id:
             auth_header = request.headers.get("Authorization")
             if auth_header and auth_header.startswith("Bearer "):
-                token = auth_header.split(" ")[1]
+                session_id = auth_header.split(" ")[1]
         
-        # 3. Deny if no token exists
-        if not token:
+        # 3. Deny if no session_id exists
+        if not session_id:
             error_response = APIErrorResponse(
                 error_code="NOT_AUTHENTICATED",
                 message="Not authenticated",
@@ -49,18 +53,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
             
         # 4. Decode and Verify Token
         try:
-            payload = jwt.decode(
-                token, 
-                settings.secret_key, 
-                algorithms=[ALGORITHM],
-                audience="web-client",
-                issuer=settings.project_name
-            )
-            token_data = TokenPayload(**payload)
-            request.state.user_id = token_data.sub
+            user_data = await redis_session.get(session_id)
+            session = SessionData.model_validate_json(user_data)
+            request.state.user_id = session.user_id
         except Exception as e:
             # Uncomment this to see what exception is happening
-            # print(f"JWT decode error: {e}")
+            print(f"JWT decode error: {e}")
             error_response = APIErrorResponse(
                 error_code="INVALID_AUTHENTICATION_CREDENTIALS",
                 message="Invalid authentication credentials",

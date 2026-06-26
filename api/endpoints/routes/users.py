@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Request
 from typing import Any
 from uuid import UUID
 
@@ -25,8 +25,19 @@ def get_users(
     users = user_service.get_multi(session, skip=skip, limit=limit)
     return APIResponse(data=users)
 
+@router.get("/me",response_model=APIResponse[UserRead])
+async def get_my_details(request:Request, session: ReadSessionDep,):
+    try:
+        user_details = user_service.get_by_id(session,user_id=str(request.state.user_id))
+        
+        if not user_details:
+            raise HTTPException(status_code=404,detail="User not found !!")
+        return APIResponse(data=user_details)
+    except Exception as e:
+        raise HTTPException(status_code=500,detail="Inernal server error!")
+
 @router.get("/{user_id}", response_model=APIResponse[UserRead])
-def get_user(
+async def get_user(
     user_id: UUID,
     session: ReadSessionDep,
 ):
@@ -39,7 +50,7 @@ def get_user(
     return APIResponse(data=user)
 
 @router.post("/", response_model=APIResponse[UserRead], status_code=status.HTTP_201_CREATED)
-def create_user(
+async def create_user(
     *,
     session: WriteSessionDep,
     current_user: SuperAdminDep,
@@ -63,7 +74,7 @@ def create_user(
     return APIResponse(data=user)
 
 @router.patch("/{user_id}", response_model=APIResponse[UserRead])
-def update_user(
+async def update_user(
     *,
     session: WriteSessionDep,
     user_id: UUID,
@@ -89,7 +100,7 @@ def update_user(
     return APIResponse(data=user)
 
 @router.delete("/{user_id}", response_model=APIResponse[UserRead])
-def delete_user(
+async def delete_user(
     *,
     session: WriteSessionDep,
     user_id: UUID,

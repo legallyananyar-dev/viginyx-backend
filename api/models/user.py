@@ -1,3 +1,4 @@
+from openai import BaseModel
 from sqlmodel import Relationship
 from enum import Enum
 from uuid import uuid4
@@ -161,4 +162,7 @@ class Passkeys(SQLModel, table=True):
     user: User = Relationship(
         back_populates="passkeys"
     )
-        
+
+class SessionData(BaseModel):
+    user_id: UUID
+    user_role:str

@@ -73,6 +73,14 @@ class Settings(BaseSettings):
         "allow_headers": ["*"],
     }
 
+    # Redis Configuration
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+    redis_password: str = ""
+    redis_db: int = 0
+    redis_username: str = ""
+    redis_exp:int = 1800
+
     @computed_field
     @property
     def sqlalchemy_database_uri(self) -> str:

@@ -1,31 +1,33 @@
+from api.core.database import ReadRedisDep
+from uuid import uuid4
+from api.models.user import SessionData
 import jwt
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from api.core.security import verify_password, ALGORITHM
 from api.schemas.response import LoginRequest, APIResponse
 from api.core.security import create_refresh_token
 from api.core.security import create_access_token
 from fastapi import Response, Request
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 
 from api.endpoints.deps import CurrentUserDep
 from api.core.database import ReadSessionDep, WriteSessionDep
 from api.core.config import settings
 from pydantic import BaseModel
 from sqlmodel import select
-from api.models.user import User, UserCreate, UserRead, Token, TokenPayload, Passkeys, PasskeyRead
+from api.models.user import  UserCreate, UserRead, TokenPayload, Passkeys, PasskeyRead
 from webauthn import generate_registration_options, verify_registration_response, options_to_json, generate_authentication_options, verify_authentication_response
 from webauthn.helpers import base64url_to_bytes, bytes_to_base64url
 
 from api.services.user import user_service
 from typing import Dict, Any
-from uuid import UUID
 import json
 
 router = APIRouter(tags=["auth"])
 
 @router.post("/login",response_model=APIResponse[UserRead])
 async def login_access_token(
-    session: ReadSessionDep, login_request: LoginRequest,response:Response
+    session: ReadSessionDep, login_request: LoginRequest,response:Response,redis_sess:ReadRedisDep
 ):
     """
     OAuth2 compatible token login endpoint. 
@@ -53,28 +55,22 @@ async def login_access_token(
             detail="Inactive user"
         )
 
-    access_token = create_access_token(str(user.id))
-    refresh_token = create_refresh_token(str(user.id))
-
+    # insert into redis
+    session_id = str(uuid4())
+    session_data = SessionData(
+        user_id=user.id,
+        user_role=user.role
+    )
+    await redis_sess.set(session_id,session_data.model_dump_json(),ex=settings.redis_exp)
     response.set_cookie(
-        key="access_token",
-        value=access_token,
+        key="session_id",
+        value=session_id,
         httponly=True,
         secure=settings.cookie_secure,
         samesite=settings.cookie_samesite,
         max_age=settings.access_token_expire_minutes * 60
     )
-
-    response.set_cookie(
-        key="refresh_token",
-        value=refresh_token,
-        httponly=True,
-        secure=settings.cookie_secure,
-        samesite=settings.cookie_samesite,
-        max_age=settings.refresh_token_expire_minutes * 60
-    )
-
-    return APIResponse(data=user)
+    return {"data":user,"message":"login success"}
 
 @router.post("/refresh-token", response_model=APIResponse[UserRead])
 async def refresh_access_token(
