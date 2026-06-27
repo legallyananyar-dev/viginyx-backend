@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import Column
 from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime, timezone
-from api.models.user import User
+from api.models.user import User, UserRead
 
 
 class ADRBase(SQLModel):
@@ -25,11 +25,25 @@ class ADRBase(SQLModel):
 
 class ReadADR(ADRBase):
     id: UUID
-    reported_by: User
-    patient: User
+    reported_by: UserRead
+    patient: UserRead
     
 class CreateADR(ADRBase, table=True):
     __tablename__ = "adr_reports"
     
     id: UUID = Field(default_factory=uuid4, primary_key=True)
+
+    reported_by: User = Relationship(
+        sa_relationship_kwargs={
+            "foreign_keys": "CreateADR.reported_by_id",
+            "lazy": "joined"
+        }
+    )
+    
+    patient: User = Relationship(
+        sa_relationship_kwargs={
+            "foreign_keys": "CreateADR.patient_id",
+            "lazy": "joined"
+        }
+    )
 

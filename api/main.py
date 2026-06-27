@@ -1,3 +1,4 @@
+from api.endpoints.routes import reports
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -55,6 +56,7 @@ app.add_middleware(AuthMiddleware)
 app.include_router(auth.router, prefix=settings.api_v1_str)
 app.include_router(users.router, prefix=settings.api_v1_str)
 app.include_router(pharmacist.router, prefix=f"{settings.api_v1_str}/pharmacist", tags=["Pharmacist"])
+app.include_router(reports.router,prefix=settings.api_v1_str)
 
 @app.get("/health-check", response_model=APIResponse[dict[str, str]])
 async def health_check() -> APIResponse[dict[str, str]]:

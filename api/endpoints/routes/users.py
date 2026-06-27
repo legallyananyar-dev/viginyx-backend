@@ -3,7 +3,7 @@ from typing import Any
 from uuid import UUID
 
 from api.core.database import ReadSessionDep, WriteSessionDep
-from api.endpoints.deps import SuperAdminDep, RoleChecker
+from api.endpoints.deps import RoleChecker
 from fastapi import Depends
 from typing import Annotated
 from api.models.user import UserCreate, UserRead, UserUpdate, User, UserRole
@@ -12,10 +12,9 @@ from api.services.user import user_service
 
 router = APIRouter(prefix="/users", tags=["users"])
 
-@router.get("/", response_model=APIResponse[list[UserRead]])
+@router.get("/",dependencies=[Depends(RoleChecker([UserRole.SUPER_ADMIN]))], response_model=APIResponse[list[UserRead]])
 def get_users(
     session: ReadSessionDep,
-    current_user: SuperAdminDep,
     skip: int = 0,
     limit: int = 100
 ):
@@ -53,7 +52,7 @@ async def get_user(
 async def create_user(
     *,
     session: WriteSessionDep,
-    current_user: SuperAdminDep,
+    current_user: Annotated[User, Depends(RoleChecker([UserRole.SUPER_ADMIN]))],
     user_in: UserCreate
 ):
     """
@@ -104,7 +103,7 @@ async def delete_user(
     *,
     session: WriteSessionDep,
     user_id: UUID,
-    current_user: SuperAdminDep
+    current_user: Annotated[User, Depends(RoleChecker([UserRole.SUPER_ADMIN]))]
 ):
     """
     Delete a user. Only SUPER_ADMIN can perform this.

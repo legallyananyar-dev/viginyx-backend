@@ -10,9 +10,9 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
     Verifies a plain-text password against the stored hashed password.
     """
-    # bcrypt restricts passwords to a maximum of 72 bytes
-    password_bytes = plain_password.encode("utf-8")[:72]
-    return bcrypt.checkpw(password_bytes, hashed_password.encode("utf-8"))
+
+    return bcrypt.checkpw( plain_password.encode("utf-8"),hashed_password.encode("utf-8"))
+
 
 def get_password_hash(password: str) -> str:
     """

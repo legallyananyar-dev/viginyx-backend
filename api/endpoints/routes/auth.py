@@ -36,42 +36,47 @@ async def login_access_token(
     
     TODO: Implement logic using user_service.get_by_email(session, email=form_data.username).
     """
-    user = user_service.get_by_email(session, email=login_request.username)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+
+    try:
+        user = user_service.get_by_email(session, email=login_request.username)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password"
+            )
+
+        if not verify_password(login_request.password, user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password"
+            )
+
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Inactive user"
+            )
+
+        # insert into redis
+        session_id = str(uuid4())
+        session_data = SessionData(
+            user_id=user.id,
+            user_role=user.role
         )
-
-    if not verify_password(login_request.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+        await redis_sess.set(session_id,session_data.model_dump_json(),ex=settings.redis_exp)
+        response.set_cookie(
+            key="session_id",
+            value=session_id,
+            httponly=True,
+            secure=settings.cookie_secure,
+            samesite=settings.cookie_samesite,
+            max_age=settings.access_token_expire_minutes * 60
         )
+        return {"data":user,"message":"login success"}
 
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inactive user"
-        )
-
-    # insert into redis
-    session_id = str(uuid4())
-    session_data = SessionData(
-        user_id=user.id,
-        user_role=user.role
-    )
-    await redis_sess.set(session_id,session_data.model_dump_json(),ex=settings.redis_exp)
-    response.set_cookie(
-        key="session_id",
-        value=session_id,
-        httponly=True,
-        secure=settings.cookie_secure,
-        samesite=settings.cookie_samesite,
-        max_age=settings.access_token_expire_minutes * 60
-    )
-    return {"data":user,"message":"login success"}
-
+    except Exception:
+        raise HTTPException(status_code=500)
+        
 @router.post("/refresh-token", response_model=APIResponse[UserRead])
 async def refresh_access_token(
     session: ReadSessionDep, request: Request, response: Response

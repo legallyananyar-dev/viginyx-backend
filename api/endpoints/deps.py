@@ -57,5 +57,3 @@ class RoleChecker:
                 )
         return current_user
 
-# Retained for backward compatibility
-SuperAdminDep = Annotated[User, Depends(RoleChecker([UserRole.SUPER_ADMIN]))]
